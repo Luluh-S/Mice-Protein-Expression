@@ -40,8 +40,9 @@ function render() {
   const W = plot.clientWidth, H = plot.clientHeight;
   if (!W || !H) return;
   const n = D.items.length, slot = W / n;
+  const narrow = slot < 70;
   const jw = Math.min(70, slot * 0.6), lidH = 12, neck = 8;
-  const top = 34, shelfY = H - 34, jh = shelfY - top - lidH - neck;
+  const top = 34, shelfY = H - (narrow ? 64 : 34), jh = shelfY - top - lidH - neck;
   const bodyTop = top + lidH + neck;
   const Ylvl = p => bodyTop + jh - (p / 100) * (jh - 6);
   let s = `<svg viewBox="0 0 ${W} ${H}" class="${first && !reduce ? '' : 'static'}"><defs>`;
@@ -61,12 +62,18 @@ function render() {
     s += `<rect x="${cx - jw * .34}" y="${top + lidH}" width="${jw * .68}" height="${neck + 2}" fill="rgba(75,91,179,.04)" stroke="rgba(29,35,64,.18)" stroke-width="1.5"/>`;
     s += `<rect x="${cx - jw * .42}" y="${top}" width="${jw * .84}" height="${lidH}" rx="3" fill="#4b5bb3"/>`;
     s += `<rect x="${x + jw * .16}" y="${bodyTop + 10}" width="4" height="${jh * .4}" rx="2" fill="rgba(255,255,255,.7)"/>`;
-    s += `<text class="lab" x="${cx}" y="${top - 10}" text-anchor="middle">${it.pct.toFixed(1)}%</text>`;
-    s += `<text class="name" x="${cx}" y="${shelfY + 30}" text-anchor="middle">${it.name}</text>`;
+    if (narrow) {
+      const short = it.name.replace('_N', '');
+      s += `<text class="lab" x="${cx}" y="${top - 10}" text-anchor="middle" style="font-size:10px">${it.pct.toFixed(1)}</text>`;
+      s += `<text class="name" x="${cx + 4}" y="${shelfY + 22}" text-anchor="end" style="font-size:10px" transform="rotate(-45 ${cx + 4} ${shelfY + 22})">${short}</text>`;
+    } else {
+      s += `<text class="lab" x="${cx}" y="${top - 10}" text-anchor="middle">${it.pct.toFixed(1)}%</text>`;
+      s += `<text class="name" x="${cx}" y="${shelfY + 30}" text-anchor="middle">${it.name}</text>`;
+    }
     s += `<rect x="${cx - slot / 2}" y="0" width="${slot}" height="${H}" fill="transparent"/></g>`;
   });
   const ry = Ylvl(D.threshold);
-  s += `<line class="ref" x1="0" x2="${W}" y1="${ry}" y2="${ry}"/><text class="reflab" x="${W - 4}" y="${ry - 8}" text-anchor="end">Drop a protein above ${D.threshold}%</text></svg>`;
+  s += `<line class="ref" x1="0" x2="${W}" y1="${ry}" y2="${ry}"/><text class="reflab" x="${W - 4}" y="${ry - 8}" text-anchor="end">Drop a protein above ${D.threshold}%</text>${narrow ? `<text class="reflab" x="${W / 2}" y="${top - 26}" text-anchor="middle" style="font-size:10px;fill:var(--muted)">% missing</text>` : ''}</svg>`;
   plot.querySelector('svg')?.remove();
   plot.insertAdjacentHTML('afterbegin', s);
   const svg = plot.querySelector('svg');

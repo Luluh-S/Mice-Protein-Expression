@@ -35,14 +35,20 @@ NEXT_LABELS = {"Intro": "the intro", "The experiment": "the experiment", "The pl
                "After PCA": "clustering after PCA", "The verdict": "the verdict", "Lab tests": "the bonus experiments"}
 
 
+SHOW_COUNT = [0]
+
+
 def show(name, data, height):
     """Render one of our animated components with its data."""
     page = (HERE / "components" / f"{name}.html").read_text(encoding="utf-8")
     page = page.replace("/*BASE*/", BASE_CSS).replace("/*DATA*/null", json.dumps(data))
-    if hasattr(st, "iframe"):
-        st.iframe(page, height=height)
-    else:
-        components.html(page, height=height)
+    # each component sits in its own container, so the phone CSS can give it more height
+    SHOW_COUNT[0] = SHOW_COUNT[0] + 1
+    with st.container(key=f"cmp_{name}_{SHOW_COUNT[0]}"):
+        if hasattr(st, "iframe"):
+            st.iframe(page, height=height)
+        else:
+            components.html(page, height=height)
 
 
 def script(code, key):
@@ -436,7 +442,6 @@ button:focus-visible { outline: 2px solid var(--accent) !important; outline-offs
 }
 @media (max-width: 900px) {
   [data-testid="stMainBlockContainer"], .block-container { padding: 0 18px; }
-  [data-testid="stLayoutWrapper"]:has(> .st-key-topbar), .st-key-topbar { position: static; }
   .pc-live { justify-content: flex-start; gap: 14px; }
   .pc-sec h2 { font-size: 42px; }
   .pc-figs { grid-template-columns: 1fr 1fr !important; }
@@ -459,6 +464,63 @@ button:focus-visible { outline: 2px solid var(--accent) !important; outline-offs
   .tt-team { grid-template-columns: 1fr 1fr; }
   .tt-hero { padding: 56px 20px 130px; }
   .tt-hero .tt-pinky { height: 120px; left: 4%; } .tt-hero .tt-brain { height: 76px; right: 4%; }
+}
+/* ---- phones: everything stacks, text and spacing get smaller ---- */
+@media (max-width: 760px) {
+  [class*="st-key-cmp_hero"], [class*="st-key-cmp_hero"] div, [class*="st-key-cmp_hero"] iframe { height: 980px !important; max-height: none !important; }
+  [class*="st-key-cmp_scatter"], [class*="st-key-cmp_scatter"] div, [class*="st-key-cmp_scatter"] iframe { height: 820px !important; max-height: none !important; }
+  [class*="st-key-cmp_verdict"], [class*="st-key-cmp_verdict"] div, [class*="st-key-cmp_verdict"] iframe { height: 900px !important; max-height: none !important; }
+}
+@media (max-width: 640px) {
+  [data-testid="stMainBlockContainer"], .block-container { padding: 0 14px; }
+  [data-testid="stMarkdownContainer"] p { font-size: 15px; }
+  .pc-brand { font-size: 18px; white-space: normal; }
+  /* the header stays on top while scrolling, so it is kept small on phones:
+     brand, live scores and the page menu stay; the two controls are left for the laptop */
+  .st-key-topbar { padding: 8px 0 2px; gap: 4px !important; }
+  .st-key-topbar [data-testid="stColumn"]:has(.st-key-strategy),
+  .st-key-topbar [data-testid="stColumn"]:has(.st-key-k) { display: none !important; }
+  .pc-live { gap: 10px; justify-content: flex-start; }
+  .pc-live span { font-size: 11px; }
+  .pc-live { gap: 12px; }
+  .pc-live b { font-size: 16px; }
+  .st-key-nav [data-testid="stButtonGroup"] > div { flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .st-key-nav [data-testid="stButtonGroup"] > div::-webkit-scrollbar { display: none; }
+  .st-key-nav [data-testid="stButtonGroup"] button { flex: none; padding: 8px 6px 10px !important; }
+  .st-key-nav [data-testid="stButtonGroup"] button p { font-size: 13px !important; }
+  .pc-sec { margin: 44px 0 24px; }
+  .pc-sec .num { font-size: 60px; }
+  .pc-sec h2 { font-size: 30px; }
+  .pc-sec p, [data-testid="stMarkdownContainer"] p.pc-lead, .pc-lead { font-size: 16px !important; }
+  .pc-h3 { font-size: 24px; }
+  .pc-figs .val { font-size: 30px; }
+  [data-testid="stMarkdownContainer"] p.pc-big, .pc-big { font-size: 24px !important; }
+  .pc-menu { padding: 26px 14px 20px; }
+  .pc-menu .name { font-size: 20px; }
+  .pc-rows li { font-size: 14px; gap: 12px; }
+  .pc-close .big { font-size: 36px; }
+  .pc-note.has-mouse { gap: 12px; }
+  .pb-hero { padding: 24px 16px; } .pb-hero h1 { font-size: 32px; }
+  [data-testid="stMarkdownContainer"] .pb-hero p, [data-testid="stMarkdownContainer"] .pb-section p { font-size: 15px; }
+  .pb-section h2 { font-size: 28px; } .pb-label { font-size: 28px; } .pb-name { font-size: 30px; }
+  .pb-grid { grid-template-columns: 54px repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .pb-rowhead { font-size: 13px; }
+  .pb-colhead { font-size: 11px; }
+  .pb-group { padding: 10px 2px; }
+  .pb-group code { font-size: 12px; }
+  .pb-badge { font-size: 10px; padding: 2px 6px; }
+  .pb-group.pick { transform: scale(1.02); }
+  .pb-peek img { height: 130px; }
+  .pb-result { font-size: 18px; padding-left: 16px; }
+  .tt-hero { padding: 40px 16px 110px; border-radius: 20px; }
+  .tt-hero h1 { font-size: 46px; }
+  [data-testid="stMarkdownContainer"] .tt-hero p { font-size: 16px; }
+  .tt-hero .tt-pinky { height: 90px; } .tt-hero .tt-brain { height: 58px; }
+  .tt-team-label { margin: 44px 0 18px; }
+  .tt-team { gap: 12px; }
+  .tt-member { padding: 18px 8px 16px; }
+  .tt-member svg { width: 92px; height: 92px; margin-bottom: 10px; }
+  .tt-member b { font-size: 22px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>

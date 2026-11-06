@@ -68,9 +68,11 @@ h1 em { font-style: italic; font-weight: 300; color: var(--accent); }
 .stat span { font: 500 13px var(--font-text); color: var(--muted); }
 .axis { position: absolute; z-index: 1; font: 500 13px var(--font-text); color: var(--faint, #a3a7bb); }
 @media (max-width: 760px) {
-  .copy { width: 100%; min-width: 0; padding: 36px 28px; }
-  canvas { opacity: .45; }
-  .stats { gap: 18px; }
+  .copy { width: 100%; min-width: 0; height: auto; padding: 32px 22px 0; }
+  .stats { gap: 0; }
+  .stat { padding: 14px 14px 0 0; }
+  .stat + .stat { padding-left: 14px; }
+  .stat b { font-size: 32px; }
 }
 </style>
 </head>
@@ -132,7 +134,10 @@ function layout() {
   W = r.width; H = r.height; dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.width = W * dpr; cv.height = H * dpr;
   const narrow = W < 760;
-  const left = narrow ? 24 : W * 0.46, right = W - 40, top = 48, bottom = H - 56;
+  // on phones the text sits on top and the dots get their own space underneath
+  const copyBottom = narrow ? document.querySelector('.copy').offsetHeight : 0;
+  const left = narrow ? 30 : W * 0.46, right = narrow ? W - 30 : W - 40;
+  const top = narrow ? copyBottom + 60 : 48, bottom = H - 56;
   box = {left, right, top, bottom, cx: (left + right) / 2, cy: (top + bottom) / 2};
   document.getElementById('axx').style.cssText = `left:${right - 52}px;top:${box.cy + 8}px`;
   document.getElementById('axy').style.cssText = `left:${box.cx + 8}px;top:${top - 8}px`;
