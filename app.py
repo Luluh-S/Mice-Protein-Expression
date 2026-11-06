@@ -785,9 +785,9 @@ Mice without the extra copy are the <b>control</b> group.</p></div>
 
 TEAM = [
     # name, hijab colour (None = short hair and beard), skin, circle colour, extra detail
-    ("Luluh", "#34407e", "#e9c19c", "#c9d0f4", "goggles"),
-    ("Aleen", "#a8365c", "#d6a47c", "#f6c5d3", None),
-    ("Reema", "#1f6b55", "#f0cfae", "#bfe4d3", "glasses"),
+    ("Luluh", "#1e1e26", "#e9c19c", "#c9d0f4", "goggles"),
+    ("Aleen", "#1e1e26", "#d6a47c", "#f6c5d3", None),
+    ("Reema", "#1e1e26", "#f0cfae", "#bfe4d3", "glasses"),
     ("Khalid", None, "#cf9a72", "#f3dca9", None),
 ]
 
@@ -804,7 +804,7 @@ PX_HIJAB = [
     "...HHHSCSSSSCSHHH...",
     "...HHHSSSMMSSSHHH...",
     "...HHHHSSSSSSHHHH...",
-    "...HHHHHHHHHHHHHH...",
+    "...HHHHHHHHHHAAHH...",
     "..WhHHHHHHHHHHHHhW..",
     ".WWWhHHHHHHHHHHhWWW.",
     "WWWWWLhHHHHHHhLWWWWW",
@@ -823,10 +823,10 @@ PX_MAN = [
     "....RRSSSSSSSSRR....",
     ".....sSSSSSSSSs.....",
     ".....sSESSSSESs.....",
-    ".....sSCSssSCSs.....",
-    "......SRRRRRRS......",
-    "......RRSMMSRR......",
-    ".......RRRRRR.......",
+    ".....bSCSssSCSb.....",
+    "......SSbbbbSS......",
+    "......bSSMMSSb......",
+    ".......bbbbbb.......",
     "........ssss........",
     "..WWWWWwBBBBwWWWWW..",
     ".WWWWWWLBTTBLWWWWWW.",
@@ -839,8 +839,10 @@ PX_MAN = [
 PX_EXTRA = {
     # safety goggles pushed up on the forehead
     "goggles": {3: "....HHGGGGGGGGHH....", 4: "...HHHGggGGggGHHH..."},
-    # glasses around the eyes
-    "glasses": {7: "...HHHSQEQQEQSHHH..."},
+    # round-ish glasses: frame (F) around tinted lenses (g)
+    "glasses": {6: "...HHHSFFSSFFSHHH...",
+                7: "...HHHFgEFFEgFHHH...",
+                8: "...HHHCFFSSFFCHHH..."},
 }
 
 
@@ -849,14 +851,27 @@ def _shade(hex_colour, f=0.72):
     return "#{:02x}{:02x}{:02x}".format(int(r * f), int(g * f), int(b * f))
 
 
+def _mix(a, b, t):
+    """Blend colour a towards colour b by t (0 = all a, 1 = all b)."""
+    ca = [int(a[i:i + 2], 16) for i in (1, 3, 5)]
+    cb = [int(b[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x + (y - x) * t):02x}" for x, y in zip(ca, cb))
+
+
 def avatar(i, hijab, skin, bg, extra=None, hair="#2b2220"):
     """A pixel-art portrait in a white lab coat, drawn as crisp SVG squares."""
     rows = list(PX_HIJAB if hijab else PX_MAN)
     for y, row in PX_EXTRA.get(extra, {}).items():
         rows[y] = row
+    pin = _shade(bg, .92)      # small hijab pin in each person's circle colour
+    frame = _shade(bg, .42)    # glasses frame: a deep version of the circle colour
     colours = {
-        "H": hijab, "h": _shade(hijab) if hijab else None, "S": skin, "s": _shade(skin, .85),
+        # black hijab: folds are a soft lighter grey so the shape still reads
+        "H": hijab, "h": _mix(hijab, "#ffffff", .2) if hijab else None,
+        "S": skin, "s": _shade(skin, .85),
         "E": "#1d2340", "M": "#b8475a", "C": "#e79a9c", "R": hair,
+        "b": _mix(hair, skin, .4),  # light beard / stubble
+        "A": pin, "F": frame,
         "W": "#ffffff", "w": "#dfe2ec", "L": "#9aa2bb", "O": "#c7ccdb", "P": "#d9557a",
         "B": "#cdd7f6", "T": "#4b5bb3", "G": "#f2b84b", "g": "#bfe3f2", "Q": "#f7f7f7",
     }
@@ -1402,4 +1417,3 @@ elif course == "Lab tests":
                 "It finds sensible groups, but <b>K-Means is still the better choice</b> for this data."))
 
 next_prev()
-
