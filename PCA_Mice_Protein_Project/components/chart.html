@@ -1,0 +1,198 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/*BASE*/
+.wrap { position: relative; padding: 24px 24px 14px; height: 100vh; display: flex; flex-direction: column; }
+.head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+.title { font-family: var(--font-display); font-size: 23px; font-weight: 400; letter-spacing: -0.015em; }
+.area { opacity: 0; transition: opacity 700ms var(--ease) 400ms; }
+.go .area { opacity: 1; }
+.sub { font: 500 13px var(--font-text); color: var(--muted); }
+.plot { position: relative; flex: 1; min-height: 0; }
+svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.grid line { stroke: var(--line); }
+.tick { font: 500 12px var(--font-text); fill: var(--muted); }
+.axlabel { font: 500 13px var(--font-text); fill: var(--muted); }
+.line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 900ms var(--ease-io); }
+.line.dash { stroke-dasharray: 1; }
+.dot { opacity: 0; transition: opacity 300ms var(--ease) 650ms, r 140ms var(--ease); }
+.bar { transform: scaleY(0); transform-box: fill-box; transform-origin: 50% 100%; transition: transform 700ms var(--ease); }
+.hbar { transform: scaleX(0); transform-box: fill-box; transform-origin: 0 50%; transition: transform 700ms var(--ease); }
+.vlab { opacity: 0; transition: opacity 300ms var(--ease) 600ms; font: 600 12px var(--font-text); fill: var(--ink); }
+.go .line { stroke-dashoffset: 0; }
+.go .dot, .go .vlab { opacity: 1; }
+.go .bar { transform: scaleY(1); }
+.go .hbar { transform: scaleX(1); }
+.static * { transition: none !important; }
+.guide { stroke: var(--line-2); stroke-dasharray: 3 3; opacity: 0; transition: opacity 140ms var(--ease); }
+.guide.on { opacity: 1; }
+.ring { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.hilab { font: 600 12px var(--font-text); fill: var(--ink); }
+.ref { stroke: var(--ink); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.reflab { font: 500 12px var(--font-text); fill: var(--ink); }
+.dim { opacity: .35; transition: opacity 140ms var(--ease); }
+.legend { display: flex; gap: 16px; font: 500 13px var(--font-text); color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+</style>
+</head>
+<body>
+<div class="wrap panel" id="wrap">
+  <div class="head"><div><div class="title" id="title"></div><div class="sub" id="sub"></div></div><div class="legend" id="legend"></div></div>
+  <div class="plot" id="plot"><div class="tip" id="tip"></div></div>
+</div>
+<script>
+const D = /*DATA*/null;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const plot = document.getElementById('plot');
+const tip = document.getElementById('tip');
+document.getElementById('title').textContent = D.title || '';
+document.getElementById('sub').textContent = D.subtitle || '';
+if (D.legend) {
+  document.getElementById('legend').innerHTML = D.legend.map(l => `<span><i style="background:${l.color}"></i>${l.name}</span>`).join('');
+}
+
+function fmt(v, f, dec) {
+  if (v === null || v === undefined || Number.isNaN(v)) return '–';
+  const d = dec ?? D.dec ?? 3;
+  if (f === 'pct') return (v * 100).toFixed(d) + '%';
+  if (f === 'pct100') return (+v).toFixed(d) + '%';
+  if (f === 'int') return Math.round(v).toLocaleString('en-US');
+  if (f === 'k') return (v / 1000).toFixed(0) + 'k';
+  return (+v).toFixed(d);
+}
+function niceTicks(min, max, n) {
+  const span = max - min || 1;
+  const step0 = span / n;
+  const mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= step0) || 10 * mag;
+  const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let v = lo; v <= hi + step / 2; v += step) ticks.push(+v.toFixed(10));
+  return ticks;
+}
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+let first = true;
+function render() {
+  const W = plot.clientWidth, H = plot.clientHeight;
+  if (!W || !H) return;
+  if (D.type === 'hbar') return renderH(W, H);
+  const m = {l: 58, r: 18, t: 18, b: D.xLabel ? 46 : 28};
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const n = D.x.length;
+  let all = [];
+  (D.series || []).forEach(s => s.values.forEach(v => v != null && all.push(v)));
+  if (D.bars) D.bars.values.forEach(v => all.push(v));
+  if (D.ref) all.push(D.ref.value);
+  let ymin = D.yMin ?? Math.min(...all), ymax = D.yMax ?? Math.max(...all);
+  if (D.yMin === undefined && D.bars) ymin = 0;
+  if (D.yMin === undefined && !D.bars) { const pad = (ymax - ymin) * 0.12; ymin -= pad; ymax += pad; }
+  const ticks = niceTicks(ymin, ymax, 4);
+  if (D.yMin === undefined) ymin = ticks[0];
+  if (D.yMax === undefined) ymax = ticks[ticks.length - 1];
+  const band = pw / n;
+  const X = i => m.l + band * (i + 0.5);
+  const Y = v => m.t + ph - (v - ymin) / (ymax - ymin) * ph;
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" class="${first && !reduce ? '' : 'static'}" id="svg">`;
+  s += '<g class="grid">' + ticks.filter(t => t >= ymin - 1e-9 && t <= ymax + 1e-9).map(t =>
+    `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}"/><text class="tick" x="${m.l - 10}" y="${Y(t) + 4}" text-anchor="end">${fmt(t, D.yFmt, D.tickDec ?? (D.yFmt === 'pct100' ? 0 : D.yFmt === 'k' ? 0 : 2))}</text>`).join('') + '</g>';
+  const every = Math.ceil(n / Math.max(1, Math.floor(pw / 46)));
+  D.x.forEach((x, i) => { if (i % every === 0 || i === n - 1) s += `<text class="tick" x="${X(i)}" y="${m.t + ph + 18}" text-anchor="middle">${esc(x)}</text>`; });
+  if (D.xLabel) s += `<text class="axlabel" x="${m.l + pw / 2}" y="${H - 6}" text-anchor="middle">${esc(D.xLabel)}</text>`;
+  if (D.yLabel) s += `<text class="axlabel" transform="translate(14 ${m.t + ph / 2}) rotate(-90)" text-anchor="middle">${esc(D.yLabel)}</text>`;
+  if (D.bars) {
+    const bw = Math.min(42, band * 0.68);
+    D.bars.values.forEach((v, i) => {
+      const c = D.bars.colors ? D.bars.colors[i] : D.bars.color;
+      const y0 = Y(Math.max(ymin, 0)), y1 = Y(v);
+      s += `<rect class="bar" data-i="${i}" x="${X(i) - bw / 2}" y="${Math.min(y0, y1)}" width="${bw}" height="${Math.abs(y0 - y1)}" rx="4" fill="${c}" style="transition-delay:${i * 22}ms"/>`;
+      if (D.bars.labels) s += `<text class="vlab" x="${X(i)}" y="${y1 - 8}" text-anchor="middle">${fmt(v, D.bars.fmt || D.yFmt, D.bars.dec)}</text>`;
+    });
+  }
+  if (D.ref) {
+    s += `<line class="ref" x1="${m.l}" x2="${W - m.r}" y1="${Y(D.ref.value)}" y2="${Y(D.ref.value)}"/><text class="reflab" x="${m.l + 8}" y="${Y(D.ref.value) - 8}">${esc(D.ref.label)}</text>`;
+  }
+  (D.series || []).forEach((se, si) => {
+    const pts = se.values.map((v, i) => v == null ? null : [X(i), Y(v)]).filter(Boolean);
+    const dpath = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    if (D.area && pts.length > 1) {
+      const base = Y(ymin);
+      s += `<defs><linearGradient id="ag${si}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${se.color}" stop-opacity=".26"/><stop offset="1" stop-color="${se.color}" stop-opacity="0"/></linearGradient></defs>`;
+      s += `<path class="area" d="${dpath} L ${pts[pts.length - 1][0].toFixed(1)} ${base} L ${pts[0][0].toFixed(1)} ${base} Z" fill="url(#ag${si})"/>`;
+    }
+    s += `<path class="line" pathLength="1" d="${dpath}" stroke="${se.color}" ${se.dash ? 'stroke-opacity=".9"' : ''}/>`;
+    se.values.forEach((v, i) => { if (v != null) s += `<circle class="dot" data-s="${si}" data-i="${i}" cx="${X(i)}" cy="${Y(v)}" r="3.5" fill="${se.color}"/>`; });
+  });
+  if (D.hi !== undefined && D.hi !== null && D.series) {
+    const v = D.series[0].values[D.hi];
+    const ly = D.hiBelow ? Y(v) + 24 : Y(v) - 12;
+    s += `<circle class="ring dot" cx="${X(D.hi)}" cy="${Y(v)}" r="9"/><text class="hilab dot" x="${X(D.hi) + 14}" y="${ly}">${esc(D.hiLabel || '')}</text>`;
+  }
+  s += `<line class="guide" id="guide" x1="0" x2="0" y1="${m.t}" y2="${m.t + ph}"/>`;
+  s += `<rect id="hit" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="transparent"/></svg>`;
+  plot.querySelector('svg')?.remove();
+  plot.insertAdjacentHTML('afterbegin', s);
+  const svg = plot.querySelector('svg');
+  if (first && !reduce) requestAnimationFrame(() => requestAnimationFrame(() => svg.classList.add('go')));
+  else svg.classList.add('go');
+  first = false;
+
+  const guide = svg.querySelector('#guide');
+  const hit = svg.querySelector('#hit');
+  hit.addEventListener('mousemove', e => {
+    const r = svg.getBoundingClientRect();
+    const i = Math.max(0, Math.min(n - 1, Math.floor((e.clientX - r.left - m.l) / band)));
+    guide.setAttribute('x1', X(i)); guide.setAttribute('x2', X(i)); guide.classList.add('on');
+    svg.querySelectorAll('.dot[data-i]').forEach(d => d.setAttribute('r', +d.dataset.i === i ? 5.5 : 3.5));
+    svg.querySelectorAll('.bar').forEach(b => b.classList.toggle('dim', +b.dataset.i !== i));
+    let html = `<b>${esc(D.xName ? D.xName + ' ' : '')}${esc(D.x[i])}</b>`;
+    if (D.bars) html += `<br><span class="sw" style="background:${D.bars.colors ? D.bars.colors[i] : D.bars.color}"></span>${esc(D.bars.name || '')} ${fmt(D.bars.values[i], D.bars.fmt || D.yFmt, D.bars.dec)}`;
+    (D.series || []).forEach(se => { html += `<br><span class="sw" style="background:${se.color}"></span>${esc(se.name)} ${fmt(se.values[i], se.fmt || D.yFmt, se.dec)}`; });
+    tip.innerHTML = html;
+    const tx = X(i) + 14, flip = tx + tip.offsetWidth > W;
+    tip.style.left = (flip ? X(i) - tip.offsetWidth - 14 : tx) + 'px';
+    tip.style.top = Math.max(0, e.clientY - r.top - 30) + 'px';
+    tip.classList.add('on');
+  });
+  hit.addEventListener('mouseleave', () => {
+    guide.classList.remove('on'); tip.classList.remove('on');
+    svg.querySelectorAll('.dot[data-i]').forEach(d => d.setAttribute('r', 3.5));
+    svg.querySelectorAll('.bar').forEach(b => b.classList.remove('dim'));
+  });
+}
+
+function renderH(W, H) {
+  const n = D.labels.length;
+  const lw = Math.min(140, Math.max(...D.labels.map(l => l.length)) * 7.5 + 16);
+  const m = {l: lw, r: 56, t: 6, b: 6};
+  const pw = W - m.l - m.r, rowH = (H - m.t - m.b) / n;
+  const vmax = D.xMax ?? Math.max(...D.values);
+  let s = `<svg viewBox="0 0 ${W} ${H}" class="${first && !reduce ? '' : 'static'}">`;
+  D.values.forEach((v, i) => {
+    const y = m.t + rowH * i, bh = Math.min(22, rowH * 0.62), w = v / vmax * pw;
+    const c = D.colors ? D.colors[i] : D.color;
+    s += `<g class="row" data-i="${i}"><text class="tick" x="${m.l - 12}" y="${y + rowH / 2 + 4}" text-anchor="end" style="fill:var(--ink)">${esc(D.labels[i])}</text>`;
+    s += `<rect x="${m.l}" y="${y + (rowH - bh) / 2}" width="${pw}" height="${bh}" rx="5" fill="var(--inset)"/>`;
+    s += `<rect class="hbar" x="${m.l}" y="${y + (rowH - bh) / 2}" width="${w}" height="${bh}" rx="5" fill="${c}" style="transition-delay:${i * 40}ms"/>`;
+    s += `<text class="vlab" x="${m.l + w + 8}" y="${y + rowH / 2 + 4}">${fmt(v, D.yFmt, D.dec)}</text></g>`;
+  });
+  s += '</svg>';
+  plot.querySelector('svg')?.remove();
+  plot.insertAdjacentHTML('afterbegin', s);
+  const svg = plot.querySelector('svg');
+  if (first && !reduce) requestAnimationFrame(() => requestAnimationFrame(() => svg.classList.add('go')));
+  else svg.classList.add('go');
+  first = false;
+  svg.querySelectorAll('.row').forEach(g => {
+    g.addEventListener('mouseenter', () => svg.querySelectorAll('.row').forEach(o => o.classList.toggle('dim', o !== g)));
+    g.addEventListener('mouseleave', () => svg.querySelectorAll('.row').forEach(o => o.classList.remove('dim')));
+  });
+}
+
+new ResizeObserver(() => render()).observe(plot);
+</script>
+</body>
+</html>

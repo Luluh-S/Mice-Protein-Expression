@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/*BASE*/
+.wrap { position: relative; height: 100vh; padding: 24px; display: grid; grid-template-columns: 1fr 1fr 0.9fr; gap: 16px; align-items: stretch; }
+.cell { position: relative; border-radius: 14px; background: var(--inset); border: 1px solid var(--line); padding: 18px 18px 16px; display: flex; flex-direction: column; align-items: center; }
+.cell.win { background: var(--surface-2); border-color: var(--accent); }
+.cap { align-self: stretch; display: flex; justify-content: space-between; font: 500 13px var(--font-text); color: var(--muted); }
+.cap b { color: var(--ink); font-weight: 600; }
+svg { display: block; width: 100%; max-width: 280px; height: auto; margin-top: 6px; overflow: visible; }
+.track { fill: none; stroke: #2e2721; stroke-width: 14; stroke-linecap: round; }
+.val { fill: none; stroke-width: 14; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1000ms var(--ease); }
+.needle { transition: transform 1000ms var(--ease); }
+.tk { font: 500 11.5px var(--font-text); fill: var(--muted); }
+.num { font-family: var(--font-display); font-weight: 400; font-size: 46px; line-height: 1; margin-top: -6px; font-variant-numeric: tabular-nums; }
+.lbl { font: 500 13px var(--font-text); color: var(--muted); margin-top: 6px; text-align: center; }
+.ring-bg { fill: none; stroke: #2e2721; stroke-width: 14; }
+.ring { fill: none; stroke: #7fb05a; stroke-width: 14; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1000ms var(--ease); transform: rotate(-90deg); transform-origin: 50% 50%; transform-box: fill-box; }
+.stamp {
+  position: absolute; right: 14px; top: 44px;
+  font-family: var(--font-display); font-style: italic; font-weight: 600; font-size: 18px;
+  color: var(--accent); border: 2px solid var(--accent); border-radius: 8px; padding: 4px 10px;
+  transform: rotate(-7deg) scale(1.15); opacity: 0;
+  transition: opacity 240ms var(--ease) 1100ms, transform 240ms var(--ease) 1100ms;
+}
+.go .stamp { opacity: 1; transform: rotate(-7deg) scale(1); }
+@media (max-width: 760px) { .wrap { grid-template-columns: 1fr; overflow: auto; } }
+</style>
+</head>
+<body>
+<div class="wrap panel" id="wrap"></div>
+<script>
+const D = /*DATA*/null;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const wrap = document.getElementById('wrap');
+const MAX = 0.5;
+
+function dial(id, title, sub, v, color, win) {
+  const f = Math.max(0, Math.min(1, v / MAX));
+  let ticks = '';
+  for (let k = 0; k <= 5; k++) {
+    const a = Math.PI * (1 - k / 5), x = 120 + Math.cos(a) * 118, y = 128 - Math.sin(a) * 118;
+    ticks += `<text class="tk" x="${x}" y="${y + 4}" text-anchor="middle">${(k * 0.1).toFixed(1)}</text>`;
+  }
+  return `<div class="cell ${win ? 'win' : ''}">
+    <div class="cap"><span><b>${title}</b></span><span>${sub}</span></div>
+    ${win ? '<div class="stamp">Approved</div>' : ''}
+    <svg viewBox="0 0 240 140">
+      <path class="track" d="M 22 128 A 98 98 0 0 1 218 128"/>
+      <path class="val" pathLength="1" data-f="${f}" d="M 22 128 A 98 98 0 0 1 218 128" stroke="${color}"/>
+      ${ticks}
+      <g class="needle" data-deg="${f * 180}" style="transform-origin:120px 128px; transform: rotate(0deg)">
+        <line x1="120" y1="128" x2="40" y2="128" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+      </g>
+      <circle cx="120" cy="128" r="7" fill="#ffffff"/>
+    </svg>
+    <div class="num" data-v="${v}">${v.toFixed(3)}</div>
+    <div class="lbl">Silhouette score</div>
+  </div>`;
+}
+function ring(v) {
+  return `<div class="cell">
+    <div class="cap"><span><b>Information kept</b></span><span>2 of 77</span></div>
+    <svg viewBox="0 0 160 160" style="max-width:170px">
+      <circle class="ring-bg" cx="80" cy="80" r="62"/>
+      <circle class="ring" pathLength="1" data-f="${v}" cx="80" cy="80" r="62"/>
+      <text x="80" y="88" text-anchor="middle" style="font: 400 30px var(--font-display); fill:#ffffff">${(v * 100).toFixed(1)}%</text>
+    </svg>
+    <div class="lbl">of the variance survives PCA.<br>${(100 - v * 100).toFixed(1)}% is lost.</div>
+  </div>`;
+}
+const winAfter = D.after > D.before;
+wrap.innerHTML = dial('b', 'Before PCA', '77 features', D.before, '#f2bd4b', !winAfter) + dial('a', 'After PCA', '2 components', D.after, '#e8573f', winAfter) + ring(D.kept);
+
+function settle() {
+  wrap.classList.add('go');
+  wrap.querySelectorAll('.val').forEach(p => p.style.strokeDashoffset = 1 - p.dataset.f);
+  wrap.querySelectorAll('.ring').forEach(p => p.style.strokeDashoffset = 1 - p.dataset.f);
+  wrap.querySelectorAll('.needle').forEach(g => g.style.transform = `rotate(${g.dataset.deg}deg)`);
+}
+if (reduce) settle();
+else {
+  requestAnimationFrame(() => requestAnimationFrame(settle));
+  const t0 = performance.now();
+  const nums = [...wrap.querySelectorAll('.num')];
+  (function count(now) {
+    const p = Math.min(1, (now - t0) / 1000), e = 1 - Math.pow(1 - p, 3);
+    nums.forEach(n => n.textContent = (+n.dataset.v * e).toFixed(3));
+    if (p < 1) requestAnimationFrame(count);
+  })(t0);
+}
+</script>
+</body>
+</html>
