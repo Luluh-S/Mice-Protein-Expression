@@ -10,7 +10,7 @@
 .sub { font: 500 13px var(--font-text); color: var(--muted); margin-top: 2px; }
 .controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
 .ctl { display: flex; align-items: center; }
-.stage { position: relative; flex: 1; min-height: 0; border-radius: 12px; background: radial-gradient(70% 80% at 50% 45%, #18140f 0%, #0e0c09 100%); border: 1px solid var(--line); overflow: hidden; }
+.stage { position: relative; flex: 1; min-height: 0; border-radius: 12px; background: radial-gradient(70% 80% at 50% 45%, #ffffff 0%, #f6f3f5 100%); border: 1px solid var(--line); overflow: hidden; }
 canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .legend { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
@@ -141,8 +141,8 @@ function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
   ctx.font = '500 12px var(--font-text)';
-  ctx.fillStyle = '#8f8a84';
-  ctx.strokeStyle = 'rgba(255,255,255,.07)';
+  ctx.fillStyle = '#6b7088';
+  ctx.strokeStyle = 'rgba(29,35,64,.07)';
   ctx.lineWidth = 1;
   niceTicks(bounds.x0, bounds.x1, 6).forEach(v => {
     const x = SX(v); ctx.beginPath(); ctx.moveTo(x, M.t); ctx.lineTo(x, H - M.b); ctx.stroke();
@@ -152,10 +152,10 @@ function draw() {
     const y = SY(v); ctx.beginPath(); ctx.moveTo(M.l, y); ctx.lineTo(W - M.r, y); ctx.stroke();
     ctx.textAlign = 'right'; ctx.fillText(v, M.l - 8, y + 4);
   });
-  ctx.strokeStyle = 'rgba(255,255,255,.24)';
+  ctx.strokeStyle = 'rgba(29,35,64,.24)';
   if (bounds.x0 < 0 && bounds.x1 > 0) { ctx.beginPath(); ctx.moveTo(SX(0), M.t); ctx.lineTo(SX(0), H - M.b); ctx.stroke(); }
   if (bounds.y0 < 0 && bounds.y1 > 0) { ctx.beginPath(); ctx.moveTo(M.l, SY(0)); ctx.lineTo(W - M.r, SY(0)); ctx.stroke(); }
-  ctx.fillStyle = '#ffffff'; ctx.textAlign = 'right';
+  ctx.fillStyle = '#1d2340'; ctx.textAlign = 'right';
   ctx.fillText(view.xl || view.x.toUpperCase(), W - M.r, H - M.b - 8);
   ctx.textAlign = 'left';
   ctx.fillText(view.yl || view.y.toUpperCase(), M.l + 8, M.t + 12);
@@ -171,7 +171,7 @@ function draw() {
   }
   if (hoverIdx !== null) {
     const o = hoverIdx * 6;
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#1d2340'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(cur[o], cur[o + 1], 8, 0, 6.2832); ctx.stroke();
   }
 }

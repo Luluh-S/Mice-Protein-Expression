@@ -10,14 +10,14 @@
 .cap { align-self: stretch; display: flex; justify-content: space-between; font: 500 13px var(--font-text); color: var(--muted); }
 .cap b { color: var(--ink); font-weight: 600; }
 svg { display: block; width: 100%; max-width: 280px; height: auto; margin-top: 6px; overflow: visible; }
-.track { fill: none; stroke: #2e2721; stroke-width: 14; stroke-linecap: round; }
+.track { fill: none; stroke: #ece7ee; stroke-width: 14; stroke-linecap: round; }
 .val { fill: none; stroke-width: 14; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1000ms var(--ease); }
 .needle { transition: transform 1000ms var(--ease); }
 .tk { font: 500 11.5px var(--font-text); fill: var(--muted); }
 .num { font-family: var(--font-display); font-weight: 400; font-size: 46px; line-height: 1; margin-top: -6px; font-variant-numeric: tabular-nums; }
 .lbl { font: 500 13px var(--font-text); color: var(--muted); margin-top: 6px; text-align: center; }
-.ring-bg { fill: none; stroke: #2e2721; stroke-width: 14; }
-.ring { fill: none; stroke: #7fb05a; stroke-width: 14; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1000ms var(--ease); transform: rotate(-90deg); transform-origin: 50% 50%; transform-box: fill-box; }
+.ring-bg { fill: none; stroke: #ece7ee; stroke-width: 14; }
+.ring { fill: none; stroke: #2f8f6f; stroke-width: 14; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1000ms var(--ease); transform: rotate(-90deg); transform-origin: 50% 50%; transform-box: fill-box; }
 .stamp {
   position: absolute; right: 14px; top: 44px;
   font-family: var(--font-display); font-style: italic; font-weight: 600; font-size: 18px;
@@ -52,9 +52,9 @@ function dial(id, title, sub, v, color, win) {
       <path class="val" pathLength="1" data-f="${f}" d="M 22 128 A 98 98 0 0 1 218 128" stroke="${color}"/>
       ${ticks}
       <g class="needle" data-deg="${f * 180}" style="transform-origin:120px 128px; transform: rotate(0deg)">
-        <line x1="120" y1="128" x2="40" y2="128" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+        <line x1="120" y1="128" x2="40" y2="128" stroke="#1d2340" stroke-width="3" stroke-linecap="round"/>
       </g>
-      <circle cx="120" cy="128" r="7" fill="#ffffff"/>
+      <circle cx="120" cy="128" r="7" fill="#1d2340"/>
     </svg>
     <div class="num" data-v="${v}">${v.toFixed(3)}</div>
     <div class="lbl">Silhouette score</div>
@@ -66,13 +66,13 @@ function ring(v) {
     <svg viewBox="0 0 160 160" style="max-width:170px">
       <circle class="ring-bg" cx="80" cy="80" r="62"/>
       <circle class="ring" pathLength="1" data-f="${v}" cx="80" cy="80" r="62"/>
-      <text x="80" y="88" text-anchor="middle" style="font: 400 30px var(--font-display); fill:#ffffff">${(v * 100).toFixed(1)}%</text>
+      <text x="80" y="88" text-anchor="middle" style="font: 400 30px var(--font-display); fill:#1d2340">${(v * 100).toFixed(1)}%</text>
     </svg>
     <div class="lbl">of the variance survives PCA.<br>${(100 - v * 100).toFixed(1)}% is lost.</div>
   </div>`;
 }
 const winAfter = D.after > D.before;
-wrap.innerHTML = dial('b', 'Before PCA', '77 features', D.before, '#f2bd4b', !winAfter) + dial('a', 'After PCA', '2 components', D.after, '#e8573f', winAfter) + ring(D.kept);
+wrap.innerHTML = dial('b', 'Before PCA', '77 features', D.before, '#d99a1e', !winAfter) + dial('a', 'After PCA', '2 components', D.after, '#d9557a', winAfter) + ring(D.kept);
 
 function settle() {
   wrap.classList.add('go');

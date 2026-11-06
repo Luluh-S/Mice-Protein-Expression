@@ -11,10 +11,10 @@
   border: 1px solid var(--line);
   overflow: hidden;
   background:
-    radial-gradient(900px 560px at 74% 46%, rgba(201, 164, 90, .16), transparent 62%),
-    radial-gradient(600px 400px at 10% 110%, rgba(200, 69, 44, .14), transparent 60%),
-    var(--bg);
-  color: #ffffff;
+    radial-gradient(900px 560px at 74% 46%, rgba(217, 85, 122, .10), transparent 62%),
+    radial-gradient(600px 400px at 10% 110%, rgba(75, 91, 179, .08), transparent 60%),
+    #ffffff;
+  color: var(--ink);
 }
 canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .copy {
@@ -35,11 +35,11 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
   align-items: center;
   gap: 8px;
   font: 500 13px var(--font-text);
-  color: rgba(250, 246, 238, .82);
+  color: var(--ink-2);
   padding: 6px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(250, 246, 238, .18);
-  background: rgba(250, 246, 238, .05);
+  border: 1px solid var(--line-2);
+  background: var(--surface);
 }
 .pill i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
 h1 {
@@ -51,11 +51,11 @@ h1 {
   line-height: .94;
   letter-spacing: -0.04em;
 }
-h1 em { font-style: italic; font-weight: 300; color: #e3c48a; }
-.lead { margin: 0; max-width: 36ch; font-size: 18px; line-height: 1.6; color: rgba(250, 246, 238, .78); }
-.stats { display: flex; gap: 0; margin-top: 16px; border-top: 1px solid rgba(255,255,255,.14); }
+h1 em { font-style: italic; font-weight: 300; color: var(--accent); }
+.lead { margin: 0; max-width: 36ch; font-size: 18px; line-height: 1.6; color: var(--muted); }
+.stats { display: flex; gap: 0; margin-top: 16px; border-top: 1px solid var(--line-2); }
 .stat { padding: 16px 28px 0 0; }
-.stat + .stat { padding-left: 24px; border-left: 1px solid rgba(255,255,255,.1); }
+.stat + .stat { padding-left: 24px; border-left: 1px solid var(--line); }
 .stat b {
   display: block;
   font-family: var(--font-display);
@@ -65,8 +65,8 @@ h1 em { font-style: italic; font-weight: 300; color: #e3c48a; }
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
-.stat span { font: 500 13px var(--font-text); color: rgba(250, 246, 238, .6); }
-.axis { position: absolute; z-index: 1; font: 500 13px var(--font-text); color: rgba(250, 246, 238, .38); }
+.stat span { font: 500 13px var(--font-text); color: var(--muted); }
+.axis { position: absolute; z-index: 1; font: 500 13px var(--font-text); color: var(--faint, #a3a7bb); }
 @media (max-width: 760px) {
   .copy { width: 100%; min-width: 0; padding: 36px 28px; }
   canvas { opacity: .45; }
@@ -79,8 +79,8 @@ h1 em { font-style: italic; font-weight: 300; color: #e3c48a; }
   <canvas id="cv"></canvas>
   <div class="copy">
     <span class="pill"><i></i>Mini project · K-Means before and after PCA</span>
-    <h1>Anyone can <em>cluster.</em></h1>
-    <p class="lead">1,080 brain samples from 72 mice, 77 proteins each. We let K-Means find the groups — first with every protein, then after PCA boils them down to two.</p>
+    <h1>Pondering the <em>clusters.</em></h1>
+    <p class="lead">1,080 brain samples from 72 mice, 77 proteins each. We let K-Means find the groups: first with every protein, then after PCA shrinks them down to two.</p>
     <div class="stats" id="stats"></div>
   </div>
   <span class="axis" id="axx">PC1 →</span>
@@ -121,7 +121,7 @@ let W = 0, H = 0, dpr = 1, box = null;
 const start = new Float32Array(N * 2), seed = new Float32Array(N);
 for (let i = 0; i < N; i++) {
   seed[i] = Math.random();
-  const a = i * 2.39996; // golden angle spiral, like a stirred pot
+  const a = i * 2.39996; // golden angle spiral, a tight swirl in the middle of the dish
   const r = Math.sqrt(i / N);
   start[i * 2] = Math.cos(a) * r;
   start[i * 2 + 1] = Math.sin(a) * r;
@@ -152,23 +152,23 @@ function frame(now) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
 
-  // the plate the dish is served on: a soft disc, its rim and an inner ring
+  // a petri dish under the points: a soft disc, its rim and an inner ring
   const plateR = Math.min(box.right - box.left, box.bottom - box.top) * 0.62;
   const pg = ctx.createRadialGradient(box.cx, box.cy, plateR * 0.2, box.cx, box.cy, plateR);
-  pg.addColorStop(0, 'rgba(255,248,235,.045)');
-  pg.addColorStop(0.85, 'rgba(255,248,235,.025)');
-  pg.addColorStop(1, 'rgba(255,248,235,0)');
+  pg.addColorStop(0, 'rgba(75,91,179,.05)');
+  pg.addColorStop(0.85, 'rgba(75,91,179,.03)');
+  pg.addColorStop(1, 'rgba(75,91,179,0)');
   ctx.fillStyle = pg;
   ctx.beginPath(); ctx.arc(box.cx, box.cy, plateR, 0, 6.2832); ctx.fill();
   ctx.lineWidth = 1;
-  ctx.strokeStyle = 'rgba(255,248,235,.09)';
+  ctx.strokeStyle = 'rgba(29,35,64,.14)';
   ctx.beginPath(); ctx.arc(box.cx, box.cy, plateR * 0.96, 0, 6.2832); ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,248,235,.05)';
+  ctx.strokeStyle = 'rgba(29,35,64,.08)';
   ctx.beginPath(); ctx.arc(box.cx, box.cy, plateR * 0.78, 0, 6.2832); ctx.stroke();
 
   // faint axes through the middle of the cloud
   const [ox, oy] = toScreen(0, 0);
-  ctx.strokeStyle = 'rgba(250,246,238,.07)';
+  ctx.strokeStyle = 'rgba(29,35,64,.08)';
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(box.left, oy); ctx.lineTo(box.right, oy);
@@ -182,7 +182,7 @@ function frame(now) {
     const e = ease(p);
     const sx = box.cx + start[i * 2] * potR, sy = box.cy + start[i * 2 + 1] * potR;
     let [tx, ty] = toScreen(D.x[i], D.y[i]);
-    // simmer: a small bob on one 3.2 s cycle once the dish has settled
+    // drift: a small bob on one 3.2 s cycle once the points have settled
     if (p >= 1 && !reduce) {
       const ph = seed[i] * Math.PI * 2;
       tx += Math.cos((el / 3200) * Math.PI * 2 + ph) * 1.4;

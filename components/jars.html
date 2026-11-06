@@ -15,7 +15,7 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .go .lab { opacity: 1; }
 .static * { transition: none !important; }
 .name { font: 500 12px var(--font-text); fill: var(--muted); }
-.glass { fill: rgba(255, 255, 255, .035); stroke: var(--line-2); stroke-width: 1.5; transition: stroke 140ms var(--ease); }
+.glass { fill: rgba(75, 91, 179, .05); stroke: var(--line-2); stroke-width: 1.5; transition: stroke 140ms var(--ease); }
 .jar:hover .glass { stroke: var(--ink); }
 .jar { cursor: default; }
 .ref { stroke: var(--ink); stroke-width: 1.2; stroke-dasharray: 6 5; }
@@ -51,16 +51,16 @@ function render() {
   });
   s += '</defs>';
   // shelf board
-  s += `<rect x="0" y="${shelfY}" width="${W}" height="10" rx="3" fill="#3b2e22"/><rect x="0" y="${shelfY + 10}" width="${W}" height="4" fill="rgba(0,0,0,.4)"/>`;
+  s += `<rect x="0" y="${shelfY}" width="${W}" height="10" rx="3" fill="#d9dbe6"/><rect x="0" y="${shelfY + 10}" width="${W}" height="4" fill="rgba(29,35,64,.06)"/>`;
   D.items.forEach((it, i) => {
     const cx = slot * (i + .5), x = cx - jw / 2, lvl = Ylvl(it.pct);
     s += `<g class="jar" data-i="${i}">`;
     s += `<rect class="glass" x="${x}" y="${bodyTop}" width="${jw}" height="${jh}" rx="${jw * .24}"/>`;
-    s += `<g clip-path="url(#c${i})"><rect class="liquid" x="${x}" y="${lvl}" width="${jw}" height="${bodyTop + jh - lvl}" fill="${it.pct >= D.threshold ? '#8f2e1f' : '#e8573f'}" style="transition-delay:${i * 60}ms"/>`;
-    s += `<rect class="liquid" x="${x}" y="${lvl}" width="${jw}" height="3" fill="rgba(255,255,255,.25)" style="transition-delay:${i * 60}ms"/></g>`;
-    s += `<rect x="${cx - jw * .34}" y="${top + lidH}" width="${jw * .68}" height="${neck + 2}" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.18)" stroke-width="1.5"/>`;
-    s += `<rect x="${cx - jw * .42}" y="${top}" width="${jw * .84}" height="${lidH}" rx="3" fill="#b4693b"/>`;
-    s += `<rect x="${x + jw * .16}" y="${bodyTop + 10}" width="4" height="${jh * .4}" rx="2" fill="rgba(255,255,255,.16)"/>`;
+    s += `<g clip-path="url(#c${i})"><rect class="liquid" x="${x}" y="${lvl}" width="${jw}" height="${bodyTop + jh - lvl}" fill="${it.pct >= D.threshold ? '#a8324f' : '#d9557a'}" style="transition-delay:${i * 60}ms"/>`;
+    s += `<rect class="liquid" x="${x}" y="${lvl}" width="${jw}" height="3" fill="rgba(255,255,255,.45)" style="transition-delay:${i * 60}ms"/></g>`;
+    s += `<rect x="${cx - jw * .34}" y="${top + lidH}" width="${jw * .68}" height="${neck + 2}" fill="rgba(75,91,179,.04)" stroke="rgba(29,35,64,.18)" stroke-width="1.5"/>`;
+    s += `<rect x="${cx - jw * .42}" y="${top}" width="${jw * .84}" height="${lidH}" rx="3" fill="#4b5bb3"/>`;
+    s += `<rect x="${x + jw * .16}" y="${bodyTop + 10}" width="4" height="${jh * .4}" rx="2" fill="rgba(255,255,255,.7)"/>`;
     s += `<text class="lab" x="${cx}" y="${top - 10}" text-anchor="middle">${it.pct.toFixed(1)}%</text>`;
     s += `<text class="name" x="${cx}" y="${shelfY + 30}" text-anchor="middle">${it.name}</text>`;
     s += `<rect x="${cx - slot / 2}" y="0" width="${slot}" height="${H}" fill="transparent"/></g>`;
