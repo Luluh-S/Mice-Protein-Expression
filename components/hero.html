@@ -149,6 +149,13 @@ function toScreen(x, y) {
 
 const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 let t0 = performance.now(), paused = false, pausedAt = 0, offset = 0;
+const push = new Float32Array(N * 2), PUSH_R = 90, PUSH = 30;
+const pointer = {x: 0, y: 0, on: false};
+hero.addEventListener('pointermove', e => {
+  const r = hero.getBoundingClientRect();
+  pointer.x = e.clientX - r.left; pointer.y = e.clientY - r.top; pointer.on = true;
+});
+hero.addEventListener('pointerleave', () => { pointer.on = false; });
 const ASSEMBLE = reduce ? 0 : 1100;
 
 function frame(now) {
@@ -193,13 +200,26 @@ function frame(now) {
       tx += Math.cos((el / 3200) * Math.PI * 2 + ph) * 1.4;
       ty += Math.sin((el / 3200) * Math.PI * 2 + ph) * 1.4;
     }
-    const x = sx + (tx - sx) * e, y = sy + (ty - sy) * e;
+    let x = sx + (tx - sx) * e, y = sy + (ty - sy) * e;
+    // the cursor gently pushes nearby points away; they drift back when it leaves
+    let wantX = 0, wantY = 0, near = 0;
+    if (pointer.on && p >= 1 && !reduce) {
+      const dx = x - pointer.x, dy = y - pointer.y, d = Math.hypot(dx, dy);
+      if (d < PUSH_R && d > 0.01) {
+        near = 1 - d / PUSH_R;
+        const f = near * near * PUSH;
+        wantX = dx / d * f; wantY = dy / d * f;
+      }
+    }
+    push[i * 2] += (wantX - push[i * 2]) * 0.14;
+    push[i * 2 + 1] += (wantY - push[i * 2 + 1]) * 0.14;
+    x += push[i * 2]; y += push[i * 2 + 1];
     const c = D.palette[D.c[i]];
-    ctx.globalAlpha = 0.10;
+    ctx.globalAlpha = 0.10 + near * 0.16;
     ctx.fillStyle = c;
-    ctx.beginPath(); ctx.arc(x, y, 6.5, 0, 6.2832); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, 6.5 + near * 3, 0, 6.2832); ctx.fill();
     ctx.globalAlpha = 0.95;
-    ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 6.2832); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, 2.4 + near * 1.2, 0, 6.2832); ctx.fill();
   }
   ctx.globalAlpha = 1;
   if (!reduce) requestAnimationFrame(frame);

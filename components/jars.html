@@ -19,6 +19,26 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .jar:hover .glass { stroke: var(--ink); }
 .jar { cursor: default; }
 .ref { stroke: var(--ink); stroke-width: 1.2; stroke-dasharray: 6 5; }
+/* the jar lifts off the shelf on hover, its shadow stays behind */
+.lift { transition: transform 200ms var(--ease); }
+.jar:hover .lift { transform: translateY(-6px); }
+.shadow { opacity: .55; transform-box: fill-box; transform-origin: 50% 50%; transition: opacity 200ms var(--ease), transform 200ms var(--ease); }
+.jar:hover .shadow { opacity: .3; transform: scaleX(.8); }
+/* a slow wave on the liquid surface and a few bubbles, once the jars have filled */
+.surf { opacity: 0; transition: opacity 400ms var(--ease) 900ms; }
+.go .surf { opacity: 1; }
+.wave { animation: wave var(--dur, 2.6s) linear infinite; }
+@keyframes wave { to { transform: translateX(var(--d)); } }
+.bub { fill: rgba(255, 255, 255, .75); opacity: 0; animation: rise var(--dur) var(--ease-io) var(--delay) infinite; }
+@keyframes rise {
+  0% { transform: translateY(0); opacity: 0; }
+  15% { opacity: .9; }
+  85% { opacity: .7; }
+  100% { transform: translateY(var(--h)); opacity: 0; }
+}
+.jar:hover .bub { animation-duration: calc(var(--dur) * .5); }
+.lab { transition: opacity 300ms var(--ease) 700ms, fill 140ms var(--ease); }
+.jar:hover .lab { fill: var(--accent); }
 .reflab { font: 500 12px var(--font-text); fill: var(--ink); }
 </style>
 </head>
@@ -55,13 +75,39 @@ function render() {
   s += `<rect x="0" y="${shelfY}" width="${W}" height="10" rx="3" fill="#d9dbe6"/><rect x="0" y="${shelfY + 10}" width="${W}" height="4" fill="rgba(29,35,64,.06)"/>`;
   D.items.forEach((it, i) => {
     const cx = slot * (i + .5), x = cx - jw / 2, lvl = Ylvl(it.pct);
+    const fill = it.pct >= D.threshold ? '#a8324f' : '#d9557a';
+    const bottom = bodyTop + jh;
     s += `<g class="jar" data-i="${i}">`;
+    s += `<ellipse class="shadow" cx="${cx}" cy="${shelfY + 1}" rx="${jw * .46}" ry="3" fill="rgba(29,35,64,.18)"/>`;
+    s += `<g class="lift">`;
     s += `<rect class="glass" x="${x}" y="${bodyTop}" width="${jw}" height="${jh}" rx="${jw * .24}"/>`;
-    s += `<g clip-path="url(#c${i})"><rect class="liquid" x="${x}" y="${lvl}" width="${jw}" height="${bodyTop + jh - lvl}" fill="${it.pct >= D.threshold ? '#a8324f' : '#d9557a'}" style="transition-delay:${i * 60}ms"/>`;
-    s += `<rect class="liquid" x="${x}" y="${lvl}" width="${jw}" height="3" fill="rgba(255,255,255,.45)" style="transition-delay:${i * 60}ms"/></g>`;
+    s += `<g clip-path="url(#c${i})"><rect class="liquid" x="${x}" y="${lvl}" width="${jw}" height="${bottom - lvl}" fill="${fill}" style="transition-delay:${i * 60}ms"/>`;
+    s += `<rect class="liquid" x="${x}" y="${lvl}" width="${jw}" height="3" fill="rgba(255,255,255,.45)" style="transition-delay:${i * 60}ms"/>`;
+    if (bottom - lvl > 4) {
+      // a sine wave three wavelengths wide, slid by one wavelength on a loop so it never jumps
+      const amp = Math.min(2.6, (bottom - lvl) / 3), x0 = x - jw;
+      let d = `M ${x0} ${lvl + 10}`;
+      for (let k = 0; k <= 48; k++) {
+        const px = x0 + (k / 48) * jw * 3;
+        d += ` L ${px.toFixed(1)} ${(lvl - amp * Math.sin((k / 16) * Math.PI * 2)).toFixed(2)}`;
+      }
+      d += ` L ${x0 + jw * 3} ${lvl + 10} Z`;
+      s += `<g class="surf" style="transition-delay:${900 + i * 60}ms">`;
+      s += `<path class="wave" d="${d}" fill="${fill}" style="--d:${jw}px;--dur:${(2.4 + (i % 3) * .35).toFixed(2)}s"/>`;
+      s += `<path class="wave" d="${d}" fill="rgba(255,255,255,.22)" style="--d:${jw}px;--dur:${(3.4 + (i % 2) * .4).toFixed(2)}s;transform-origin:0 0;animation-direction:reverse"/>`;
+      if (bottom - lvl > 16) {
+        for (let k = 0; k < 3; k++) {
+          const bx = x + jw * (.28 + .22 * k) + ((i * 7 + k * 5) % 6) - 3;
+          const r = 1.4 + ((i + k) % 3) * .5;
+          s += `<circle class="bub" cx="${bx.toFixed(1)}" cy="${bottom - 6}" r="${r}" style="--h:${-(bottom - lvl - 4)}px;--dur:${(2.6 + k * .7 + (i % 4) * .3).toFixed(2)}s;--delay:${(k * .9 + i * .23).toFixed(2)}s"/>`;
+        }
+      }
+      s += `</g>`;
+    }
+    s += `</g>`;
     s += `<rect x="${cx - jw * .34}" y="${top + lidH}" width="${jw * .68}" height="${neck + 2}" fill="rgba(75,91,179,.04)" stroke="rgba(29,35,64,.18)" stroke-width="1.5"/>`;
     s += `<rect x="${cx - jw * .42}" y="${top}" width="${jw * .84}" height="${lidH}" rx="3" fill="#4b5bb3"/>`;
-    s += `<rect x="${x + jw * .16}" y="${bodyTop + 10}" width="4" height="${jh * .4}" rx="2" fill="rgba(255,255,255,.7)"/>`;
+    s += `<rect x="${x + jw * .16}" y="${bodyTop + 10}" width="4" height="${jh * .4}" rx="2" fill="rgba(255,255,255,.7)"/></g>`;
     if (narrow) {
       const short = it.name.replace('_N', '');
       s += `<text class="lab" x="${cx}" y="${top - 10}" text-anchor="middle" style="font-size:10px">${it.pct.toFixed(1)}</text>`;

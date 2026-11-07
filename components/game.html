@@ -1,0 +1,612 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/*BASE*/
+:root { --soft: #fde9ef; --gold: #d99a1e; --green: #2f8f6f; --navy: #4b5bb3; --red: #d9557a; --red-deep: #a8324f; }
+.wrap { position: relative; height: 100vh; padding: 24px 28px 18px; display: flex; flex-direction: column; gap: 16px; }
+.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.title { font-family: var(--font-display); font-size: 26px; letter-spacing: -0.01em; line-height: 1.1; }
+.sub { font: 500 13px var(--font-text); color: var(--muted); margin-top: 4px; }
+.pips { display: flex; gap: 6px; flex-wrap: wrap; }
+.pip { display: inline-flex; align-items: center; gap: 6px; font: 500 12px var(--font-text); color: var(--muted); padding: 6px 10px;
+  border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
+  transition: border-color 200ms var(--ease), color 200ms var(--ease), background-color 200ms var(--ease); }
+.pip i { font-style: normal; font-weight: 600; }
+.pip.now { border-color: var(--accent); color: var(--ink); }
+.pip.done { background: var(--soft); border-color: transparent; color: var(--accent); }
+.pip.failed { background: var(--ink); border-color: var(--ink); color: #fff; }
+
+.main { flex: 1; min-height: 0; display: grid; grid-template-columns: 270px 1fr; gap: 20px; }
+.cast { display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; min-width: 0; }
+.bubble { position: relative; background: var(--surface); border: 1px solid var(--line-2); border-radius: 16px; padding: 14px 16px 16px;
+  box-shadow: 0 6px 18px rgba(29, 35, 64, .06); transition: opacity 160ms var(--ease), transform 160ms var(--ease); }
+.bubble.swap { opacity: 0; transform: translateY(4px); }
+.bubble::after { content: ""; position: absolute; bottom: -8px; width: 14px; height: 14px; background: var(--surface);
+  border-right: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); transform: rotate(45deg); transition: left 240ms var(--ease); left: 64px; }
+.bubble[data-who="pinky"]::after { left: 180px; }
+.who { display: block; font: 500 12px var(--font-text); color: var(--accent); margin-bottom: 6px; }
+.line { font: 400 18px/1.45 var(--font-display); font-variation-settings: var(--display-axes); color: var(--ink-2); }
+.line b { color: var(--ink); font-weight: 500; }
+.actors { display: flex; align-items: flex-end; justify-content: space-around; height: 180px; }
+.actors img { display: block; transition: opacity 240ms var(--ease), transform 240ms var(--ease); transform-origin: 50% 100%; }
+.actors .brain { height: 118px; }
+.actors .pinky { height: 176px; }
+.actors img.talk { transform: translateY(-6px) rotate(-2deg); }
+.actors img.quiet { opacity: .5; }
+
+.board { position: relative; border-radius: 16px; border: 1px solid var(--line); overflow: hidden; min-height: 0;
+  background: radial-gradient(70% 80% at 50% 40%, #ffffff 0%, #f6f3f5 100%); display: grid; place-items: center; padding: 22px; }
+.scene { width: 100%; max-width: 560px; display: flex; flex-direction: column; align-items: center; gap: 18px; animation: sceneIn 480ms var(--ease) both; }
+.scene.out { animation: sceneOut 200ms var(--ease) both; }
+@keyframes sceneIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes sceneOut { to { opacity: 0; transform: translateY(-8px); } }
+.kicker { font: 500 13px var(--font-text); color: var(--accent); }
+.foot { display: flex; justify-content: space-between; gap: 12px; font: 500 13px var(--font-text); color: var(--muted); min-height: 20px; }
+.foot b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.btn { border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; font: 500 15px var(--font-text);
+  padding: 12px 22px; border-radius: 999px; transition: transform 140ms var(--ease), background-color 140ms var(--ease), border-color 140ms var(--ease); }
+.btn:hover { background: #c4466b; border-color: #c4466b; transform: translateY(-1px); }
+.btn:active { transform: translateY(1px) scale(.985); }
+.btn.ghost { background: var(--surface); color: var(--ink); border-color: var(--line-2); }
+.btn.ghost:hover { border-color: rgba(29, 35, 64, .4); background: var(--surface); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn[hidden] { display: none; }
+
+/* stage 1: the lab door */
+.vault { display: flex; gap: 12px; padding: 18px 22px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line-2);
+  box-shadow: 0 0 0 8px #eeeaf0, 0 14px 30px rgba(29, 35, 64, .08); transform-origin: 0 50%;
+  transition: transform 700ms var(--ease-io), opacity 700ms var(--ease-io); }
+.vault.open { transform: perspective(900px) rotateY(-75deg); opacity: 0; }
+.dial { width: 72px; display: flex; flex-direction: column; align-items: center; border-radius: 14px; background: var(--inset); border: 1px solid var(--line); }
+.dial b { font: 300 46px/1.1 var(--font-display); font-variant-numeric: tabular-nums; color: var(--ink); }
+.dial b.roll { animation: roll 200ms var(--ease); }
+@keyframes roll { from { opacity: .2; transform: translateY(var(--from, -10px)); } to { opacity: 1; transform: none; } }
+.arr { border: 0; background: transparent; color: var(--muted); cursor: pointer; width: 100%; padding: 6px 0; font-size: 12px; border-radius: 10px;
+  transition: color 140ms var(--ease), background-color 140ms var(--ease); }
+.arr:hover { color: var(--accent); background: rgba(217, 85, 122, .08); }
+.clues { width: 100%; max-width: 440px; margin: 0; padding: 0; list-style: none; }
+.clues li { display: grid; grid-template-columns: 34px 1fr; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 15px; color: var(--ink-2); }
+.clues li i { font: 400 15px var(--font-display); font-style: italic; color: var(--accent); }
+
+/* stage 2: the beakers */
+.beakers { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+.beaker { --c: var(--red); position: relative; width: 82px; height: 128px; border: 0; padding: 0; cursor: pointer; background: transparent;
+  transition: transform 160ms var(--ease); }
+.beaker .glass { position: absolute; inset: 14px 6px 26px; border-radius: 8px 8px 22px 22px; border: 1.5px solid var(--line-2); background: rgba(75, 91, 179, .05); overflow: hidden; }
+.beaker .glass::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 58%; background: var(--c); opacity: .75; transition: opacity 160ms var(--ease), height 200ms var(--ease); }
+.beaker .rim { position: absolute; left: 0; right: 0; top: 8px; height: 8px; border-radius: 4px; background: #d9dbe6; }
+.beaker .nm { position: absolute; left: 0; right: 0; bottom: 0; font: 600 12px var(--font-text); color: var(--muted); }
+.beaker:hover { transform: translateY(-2px); }
+.beaker.lit { transform: translateY(-8px); }
+.beaker.lit .glass { box-shadow: 0 0 0 6px color-mix(in srgb, var(--c) 22%, transparent), 0 0 26px color-mix(in srgb, var(--c) 55%, transparent); }
+.beaker.lit .glass::before { opacity: 1; height: 82%; }
+.beaker.lit .nm { color: var(--ink); }
+.dots { display: flex; gap: 8px; }
+.dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line-2); transition: background-color 200ms var(--ease), transform 200ms var(--ease); }
+.dots i.on { background: var(--accent); transform: scale(1.15); }
+
+/* stage 3: the bulbs */
+.grid3 { display: grid; grid-template-columns: repeat(3, 72px); gap: 14px; padding: 18px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line-2); }
+.bulb { width: 72px; height: 72px; border-radius: 50%; border: 1px solid var(--line-2); cursor: pointer; background: var(--inset);
+  transition: background-color 200ms var(--ease), box-shadow 200ms var(--ease), transform 140ms var(--ease); position: relative; }
+.bulb::after { content: ""; position: absolute; inset: 22px; border-radius: 50%; background: rgba(29, 35, 64, .1); transition: background-color 200ms var(--ease); }
+.bulb:hover { transform: translateY(-1px); }
+.bulb:active { transform: scale(.96); }
+.bulb.on { background: #fff4d6; border-color: rgba(217, 154, 30, .5); box-shadow: 0 0 0 5px rgba(217, 154, 30, .12), 0 0 24px rgba(217, 154, 30, .45); }
+.bulb.on::after { background: var(--gold); }
+.bulb.hint { animation: hint 1s var(--ease) infinite; }
+@keyframes hint { 50% { box-shadow: 0 0 0 7px rgba(217, 85, 122, .35); } }
+.grid3.win .bulb { box-shadow: 0 0 0 6px rgba(217, 154, 30, .18), 0 0 34px rgba(217, 154, 30, .6); }
+.row-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+/* stage 4: the samples */
+.plot { width: 100%; max-width: 520px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); display: block; }
+.plot circle { cursor: pointer; transition: fill 200ms var(--ease), r 160ms var(--ease); stroke: #fff; stroke-width: 2; }
+.plot circle:hover { r: 11; }
+.meter { width: 100%; max-width: 520px; }
+.meter .lab { display: flex; justify-content: space-between; font: 500 13px var(--font-text); color: var(--muted); margin-bottom: 8px; }
+.meter .lab b { color: var(--ink); font: 400 20px var(--font-display); font-variant-numeric: tabular-nums; }
+.track { position: relative; height: 10px; border-radius: 99px; background: var(--inset); border: 1px solid var(--line); }
+.track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: var(--navy); transition: width 300ms var(--ease), background-color 200ms var(--ease); }
+.track i.ok { background: var(--green); }
+.track em { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--ink); border-radius: 2px; }
+
+/* stage 5: the machine */
+.machine { display: flex; align-items: center; gap: 18px; padding: 14px 20px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line-2); }
+.mlabel { font: 500 13px var(--font-text); color: var(--muted); }
+.mlabel b { display: block; font: 400 22px var(--font-display); color: var(--ink); }
+.globe { width: 78px; height: 78px; border-radius: 50%; position: relative; overflow: hidden; flex: none;
+  background: radial-gradient(circle at 35% 30%, #a9b9ff, var(--navy) 62%, #2c3780); box-shadow: inset -8px -10px 18px rgba(0, 0, 0, .25);
+  transition: transform 700ms var(--ease-io), background 700ms var(--ease); }
+.globe::before { content: ""; position: absolute; inset: 0;
+  background: radial-gradient(14px 10px at 20% 40%, var(--green) 96%, transparent), radial-gradient(18px 13px at 45% 64%, var(--green) 96%, transparent),
+              radial-gradient(10px 8px at 38% 22%, var(--green) 96%, transparent), radial-gradient(16px 12px at 72% 36%, var(--green) 96%, transparent);
+  background-size: 200% 100%; animation: spin 7s linear infinite; }
+@keyframes spin { to { background-position: -156px 0; } }
+.globe.flat { transform: scaleY(.1); }
+.globe.cheese { background: radial-gradient(circle at 35% 30%, #ffe59a, var(--gold) 62%, #a8741a); }
+.globe.cheese::before { background: radial-gradient(6px 6px at 30% 40%, #b8801f 96%, transparent), radial-gradient(8px 8px at 60% 60%, #b8801f 96%, transparent), radial-gradient(5px 5px at 70% 25%, #b8801f 96%, transparent); background-size: 200% 100%; }
+.globe.split { background: linear-gradient(90deg, var(--red) 0 7%, #2c3780 7%); }
+.arena { position: relative; width: 100%; height: 220px; }
+.red { position: absolute; left: calc(50% - 75px); top: 20px; width: 150px; height: 150px; border-radius: 50%; border: 0; cursor: pointer;
+  background: radial-gradient(circle at 40% 32%, #f08aa5, var(--red) 55%, var(--red-deep)); color: #fff; font: 600 15px/1.25 var(--font-text); padding: 0 20px;
+  box-shadow: 0 9px 0 var(--red-deep), 0 18px 30px rgba(168, 50, 79, .35); transition: left 240ms var(--ease), top 240ms var(--ease), transform 120ms var(--ease), box-shadow 120ms var(--ease); }
+.red:hover { transform: translateY(-2px); }
+.red.down, .red:disabled { transform: translateY(7px); box-shadow: 0 2px 0 var(--red-deep), 0 6px 14px rgba(168, 50, 79, .3); cursor: default; }
+.prog { width: 100%; max-width: 460px; }
+.prog .lab { display: flex; justify-content: space-between; font: 500 13px var(--font-text); color: var(--muted); margin-bottom: 8px; min-height: 20px; }
+.prog .lab b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.prog .track i { background: var(--accent); transition: none; }
+.dark { position: absolute; inset: 0; background: #0f1226; opacity: 0; pointer-events: none; z-index: 6; display: grid; place-items: center;
+  color: rgba(255, 255, 255, .7); font: 500 14px var(--font-text); }
+.dark.on { animation: flick 1000ms steps(1) forwards; }
+@keyframes flick { 0% { opacity: .92; } 14% { opacity: 0; } 28% { opacity: .95; } 42% { opacity: .15; } 56%, 100% { opacity: .94; } }
+
+/* the end of every night */
+.fail { text-align: center; max-width: 520px; }
+.fail .kicker { display: inline-block; padding: 5px 12px; border-radius: 99px; background: var(--soft); }
+.fail h2 { font: 300 54px/1 var(--font-display); letter-spacing: -.03em; margin: 16px 0 12px; color: var(--ink); }
+.fail h2 em { font-style: italic; color: var(--accent); }
+.fail p { margin: 0 auto; max-width: 42ch; font: 400 19px/1.5 var(--font-display); color: var(--ink-2); }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); margin: 24px 0 22px; border-top: 1px solid var(--line-2); }
+.stats div { padding: 14px 8px 0; }
+.stats div + div { border-left: 1px solid var(--line); }
+.stats b { display: block; font: 300 38px/1.1 var(--font-display); font-variant-numeric: tabular-nums; color: var(--ink); }
+.stats b.zero { color: var(--accent); }
+.stats span { font: 500 12px var(--font-text); color: var(--muted); }
+.fail small { display: block; margin-top: 14px; color: var(--muted); font-size: 13px; }
+.stamp { display: inline-block; margin-top: 4px; font: italic 600 18px var(--font-display); color: var(--accent); border: 2px solid var(--accent); border-radius: 8px;
+  padding: 3px 12px; transform: rotate(-6deg); animation: thump 280ms var(--ease) 350ms both; }
+@keyframes thump { from { opacity: 0; transform: rotate(-6deg) scale(1.7); } to { opacity: 1; transform: rotate(-6deg) scale(1); } }
+
+@media (max-width: 760px) {
+  .wrap { padding: 18px 14px 12px; gap: 12px; }
+  .title { font-size: 22px; }
+  .main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; gap: 12px; }
+  .cast { flex-direction: row; align-items: flex-end; gap: 10px; }
+  .actors { height: 92px; flex: none; gap: 2px; }
+  .actors .brain { height: 58px; } .actors .pinky { height: 88px; }
+  .bubble { flex: 1; padding: 10px 12px 12px; }
+  .bubble::after { display: none; }
+  .line { font-size: 15px; }
+  .board { padding: 16px 10px; overflow-y: auto; place-items: start center; }
+  .grid3 { grid-template-columns: repeat(3, 62px); gap: 10px; padding: 12px; }
+  .bulb { width: 62px; height: 62px; } .bulb::after { inset: 18px; }
+  .beakers { gap: 8px; } .beaker { width: 70px; }
+  .dial { width: 60px; } .dial b { font-size: 38px; }
+  .fail h2 { font-size: 38px; } .fail p { font-size: 16px; }
+  .stats b { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap panel">
+  <div class="top">
+    <div><div class="title">Operation: take over the world</div><div class="sub" id="sub"></div></div>
+    <div class="pips" id="pips"></div>
+  </div>
+  <div class="main">
+    <div class="cast">
+      <div class="bubble" id="bubble" data-who="brain"><span class="who" id="who">The Brain</span><div class="line" id="line"></div></div>
+      <div class="actors"><img class="brain" id="imBrain" alt="The Brain"><img class="pinky quiet" id="imPinky" alt="Pinky"></div>
+    </div>
+    <div class="board" id="board"></div>
+  </div>
+  <div class="foot"><span id="footL"></span><span id="footR"></span></div>
+</div>
+<script>
+const D = /*DATA*/null;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const board = $('board');
+const h = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+const pick = list => list[Math.floor(Math.random() * list.length)];
+
+// nights tried survive page changes (and reloads, when the browser allows it)
+const memo = (() => { try { return window.parent.__pcGame || (window.parent.__pcGame = {}); } catch (e) { return {}; } })();
+let nights = memo.nights || 0;
+try { nights = Math.max(nights, +localStorage.getItem('pc-nights') || 0); } catch (e) {}
+function saveNights() { memo.nights = nights; try { localStorage.setItem('pc-nights', nights); } catch (e) {} }
+
+if (D.brain) $('imBrain').src = D.brain; else $('imBrain').remove();
+if (D.pinky) $('imPinky').src = D.pinky; else $('imPinky').remove();
+
+// timers belong to the stage that set them, so a restart cancels everything at once
+let timers = [];
+const later = (fn, ms) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
+const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
+
+// ---------- the cast ----------
+let sayId = 0;
+function say(who, text) {
+  const id = ++sayId, b = $('bubble');
+  b.classList.add('swap');
+  setTimeout(() => {
+    if (id !== sayId) return;
+    b.dataset.who = who;
+    $('who').textContent = who === 'brain' ? 'The Brain' : 'Pinky';
+    $('line').innerHTML = text;
+    b.classList.remove('swap');
+    const br = $('imBrain'), pk = $('imPinky');
+    if (br) { br.classList.toggle('talk', who === 'brain'); br.classList.toggle('quiet', who !== 'brain'); }
+    if (pk) { pk.classList.toggle('talk', who === 'pinky'); pk.classList.toggle('quiet', who !== 'pinky'); }
+  }, 160);
+}
+const shake = el => reduce || el.animate([{transform: 'translateX(0)'}, {transform: 'translateX(-8px)'}, {transform: 'translateX(7px)'},
+  {transform: 'translateX(-4px)'}, {transform: 'translateX(0)'}], {duration: 360, easing: 'ease-out'});
+
+// ---------- stages ----------
+const NAMES = ['The door', 'The sequence', 'The power', 'The calibration', 'The button'];
+let stage = 0;
+function pips(failed) {
+  $('pips').innerHTML = NAMES.map((n, i) => {
+    const last = i === NAMES.length - 1;
+    const cls = failed && last ? 'failed' : i < stage || (failed && !last) ? 'done' : i === stage ? 'now' : '';
+    const mark = failed && last ? '✕' : i < stage || (failed && !last) ? '✓' : last ? '★' : ['I', 'II', 'III', 'IV'][i];
+    return `<span class="pip ${cls}"><i>${mark}</i>${n}</span>`;
+  }).join('');
+}
+function footer(right) {
+  $('footL').innerHTML = `Night <b>#${nights + 1}</b> · step ${Math.min(stage + 1, 5)} of 5`;
+  $('footR').innerHTML = right || '';
+}
+function mount(el) {
+  const old = board.querySelector('.scene');
+  if (old) { old.classList.add('out'); setTimeout(() => old.remove(), 200); }
+  setTimeout(() => board.appendChild(el), old ? 200 : 0);
+}
+function go(i) {
+  clearTimers();
+  stage = i;
+  $('sub').textContent = `Four puzzles and one big red button. Night #${nights + 1} of trying.`;
+  pips(false);
+  footer('');
+  mount(STAGES[i]());
+}
+
+// I. the lab door: a three-digit lock, the clues come from the project
+function lockStage() {
+  const vals = [0, 0, 0];
+  let tries = 0;
+  say('brain', 'Pinky, tonight we take over the world. First, the lab door. I wrote the code as three clues, so no one else could read it.');
+  const el = h(`<div class="scene">
+    <span class="kicker">Step I · Open the lab door</span>
+    <div class="vault">${vals.map((v, i) => `<div class="dial"><button class="arr" data-i="${i}" data-d="1" aria-label="Digit ${i + 1} up">▲</button><b id="dg${i}">0</b><button class="arr" data-i="${i}" data-d="-1" aria-label="Digit ${i + 1} down">▼</button></div>`).join('')}</div>
+    <ol class="clues">${D.clues.map((c, i) => `<li><i>${i + 1}.</i><span>${c}</span></li>`).join('')}</ol>
+    <button class="btn" id="open">Open the door</button>
+  </div>`);
+  el.querySelectorAll('.arr').forEach(b => b.onclick = () => {
+    const i = +b.dataset.i, d = +b.dataset.d;
+    vals[i] = (vals[i] + d + 10) % 10;
+    const dg = el.querySelector('#dg' + i);
+    dg.textContent = vals[i];
+    dg.style.setProperty('--from', d > 0 ? '10px' : '-10px');
+    dg.classList.remove('roll'); void dg.offsetWidth; dg.classList.add('roll');
+  });
+  const pinky = ['Is it 1-2-3, Brain? It\'s always 1-2-3.', 'Narf! I tried my birthday. I don\'t know my birthday.',
+                 'Brain, maybe the answers are hiding somewhere in this app?'];
+  el.querySelector('#open').onclick = () => {
+    if (vals.every((v, i) => v === D.code[i])) {
+      el.querySelector('.vault').classList.add('open');
+      say('brain', 'Excellent. The door is open. Come, Pinky.');
+      footer('Door open');
+      later(() => go(1), 1300);
+      return;
+    }
+    tries += 1;
+    shake(el.querySelector('.vault'));
+    footer(`Wrong code · ${tries} ${tries === 1 ? 'try' : 'tries'}`);
+    if (tries >= 3 && tries % 3 === 0) say('brain', 'The plan page counts the mice, Brain\'s shortcut keeps the components, and the intro shows the team. <b>Honestly.</b>');
+    else say('pinky', pinky[(tries - 1) % pinky.length]);
+  };
+  return el;
+}
+
+// II. the sequence: watch the beakers light up, then repeat them (3, then 4, then 5)
+function memoryStage() {
+  const ROUNDS = [3, 4, 5];
+  let r = 0, seq = [], pos = 0, busy = true;
+  say('brain', 'The machine reads four proteins in a secret order. Watch the beakers, Pinky, then repeat the order.');
+  const el = h(`<div class="scene">
+    <span class="kicker">Step II · Repeat the protein sequence</span>
+    <div class="beakers">${D.beakers.map((b, i) => `<button class="beaker" data-i="${i}" style="--c:${b.color}" aria-label="${b.name}"><span class="rim"></span><span class="glass"></span><span class="nm">${b.name}</span></button>`).join('')}</div>
+    <div class="dots">${ROUNDS.map(() => '<i></i>').join('')}</div>
+    <button class="btn ghost" id="again">Show me again</button>
+  </div>`);
+  const beakers = [...el.querySelectorAll('.beaker')];
+  const flash = i => { beakers[i].classList.add('lit'); later(() => beakers[i].classList.remove('lit'), 420); };
+  const newSeq = () => {
+    seq = [];
+    while (seq.length < ROUNDS[r]) { const n = Math.floor(Math.random() * 4); if (n !== seq[seq.length - 1]) seq.push(n); }
+  };
+  const play = () => {
+    busy = true; pos = 0;
+    footer(`Round ${r + 1} of 3 · watch…`);
+    seq.forEach((b, k) => later(() => flash(b), 700 + k * 640));
+    later(() => { busy = false; footer(`Round ${r + 1} of 3 · <b>your turn</b>`); }, 700 + seq.length * 640);
+  };
+  const pinky = ['Narf! I was looking at the pink one. It\'s my favourite.', 'Sorry, Brain. I was counting my toes. I have ten! No, wait.',
+                 'Was the third one the colour of cheese?'];
+  let slips = 0;
+  beakers.forEach((b, i) => b.onclick = () => {
+    if (busy) return;
+    flash(i);
+    if (i !== seq[pos]) {
+      busy = true;
+      shake(el.querySelector('.beakers'));
+      say('pinky', pinky[slips++ % pinky.length]);
+      footer('Wrong order · watch again');
+      later(play, 1300);
+      return;
+    }
+    pos += 1;
+    if (pos < seq.length) return;
+    busy = true;
+    el.querySelectorAll('.dots i')[r].classList.add('on');
+    r += 1;
+    if (r === ROUNDS.length) {
+      say('brain', 'Perfect. The sequence is loaded.');
+      footer('Sequence loaded');
+      later(() => go(2), 1300);
+    } else {
+      say('brain', r === 1 ? 'Good. Now a longer one.' : 'Longer still. Concentrate, Pinky.');
+      later(() => { newSeq(); play(); }, 1100);
+    }
+  });
+  el.querySelector('#again').onclick = () => { if (!busy) play(); };
+  newSeq();
+  later(play, 600);
+  return el;
+}
+
+// III. the power: light every bulb; a switch flips itself and the bulbs next to it
+function lightsStage() {
+  const START = [0, 5, 7];
+  const flip = (st, i) => {
+    const r = Math.floor(i / 3), c = i % 3;
+    [[r, c], [r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]].forEach(([y, x]) => { if (y >= 0 && y < 3 && x >= 0 && x < 3) st[y * 3 + x] = !st[y * 3 + x]; });
+  };
+  let st, pressed, moves;
+  const reset = () => { st = Array(9).fill(true); START.forEach(i => flip(st, i)); pressed = Array(9).fill(false); moves = 0; };
+  reset();
+  say('brain', 'Now we power the machine. <b>Every bulb must glow.</b> But each switch also flips the bulbs next to it.');
+  const el = h(`<div class="scene">
+    <span class="kicker">Step III · Light every bulb</span>
+    <div class="grid3">${st.map((_, i) => `<button class="bulb" data-i="${i}" aria-label="Switch ${i + 1}"></button>`).join('')}</div>
+    <div class="row-btns"><button class="btn ghost" id="reset">Start over</button><button class="btn ghost" id="hint" hidden>Brain, a hint?</button></div>
+  </div>`);
+  const bulbs = [...el.querySelectorAll('.bulb')];
+  let done = false;
+  const render = () => {
+    bulbs.forEach((b, i) => { b.classList.toggle('on', st[i]); b.setAttribute('aria-pressed', st[i]); });
+    footer(`Moves <b>${moves}</b> · bulbs lit <b>${st.filter(Boolean).length}/9</b>`);
+    el.querySelector('#hint').hidden = moves < 6 || done;
+  };
+  bulbs.forEach((b, i) => b.onclick = () => {
+    if (done) return;
+    bulbs.forEach(x => x.classList.remove('hint'));
+    flip(st, i); pressed[i] = !pressed[i]; moves += 1;
+    render();
+    if (moves === 4) say('pinky', 'Brain, the lights are blinking like my thoughts. On, off, on, cheese.');
+    if (st.every(Boolean)) {
+      done = true;
+      el.querySelector('.grid3').classList.add('win');
+      say('brain', 'Power at full. Yes. <b>Yes!</b>');
+      render();
+      later(() => go(3), 1400);
+    }
+  });
+  el.querySelector('#reset').onclick = () => { if (done) return; reset(); render(); bulbs.forEach(x => x.classList.remove('hint')); };
+  el.querySelector('#hint').onclick = () => {
+    // the switches still needed: the ones in the start pattern, minus (or plus) the ones pressed an odd number of times
+    const need = st.map((_, i) => START.includes(i) !== pressed[i]).map((v, i) => v ? i : -1).filter(i => i >= 0);
+    if (need.length) bulbs[need[0]].classList.add('hint');
+    say('brain', 'Press the flashing switch, Pinky. Every switch needs pressing <b>once at most</b>.');
+  };
+  render();
+  return el;
+}
+
+// IV. the calibration: sort the samples into two clusters until the silhouette score is high enough
+function clusterStage() {
+  let seed = 11;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const gauss = () => { const u = rnd() || 1e-9, v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  const P = [];
+  for (let i = 0; i < 7; i++) P.push([100 + gauss() * 22, 96 + gauss() * 20]);
+  for (let i = 0; i < 7; i++) P.push([310 + gauss() * 22, 176 + gauss() * 20]);
+  P.push([180, 124], [206, 146], [232, 132]); // three in the middle make it harder
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const sil = lab => {
+    let total = 0;
+    for (let i = 0; i < P.length; i++) {
+      let a = 0, na = 0, b = 0, nb = 0;
+      for (let j = 0; j < P.length; j++) {
+        if (i === j) continue;
+        if (lab[j] === lab[i]) { a += dist(P[i], P[j]); na++; } else { b += dist(P[i], P[j]); nb++; }
+      }
+      if (!na || !nb) continue;
+      a /= na; b /= nb;
+      total += (b - a) / Math.max(a, b);
+    }
+    return total / P.length;
+  };
+  // the best score: start from the two blobs and keep flipping points while the score improves
+  let best = P.map((p, i) => (i < 7 ? 0 : i < 14 ? 1 : p[0] < 205 ? 0 : 1)), bestS = sil(best), improved = true;
+  while (improved) {
+    improved = false;
+    for (let i = 0; i < P.length; i++) { const t = best.slice(); t[i] = 1 - t[i]; const s = sil(t); if (s > bestS + 1e-9) { best = t; bestS = s; improved = true; } }
+  }
+  const TARGET = Math.floor(bestS * 100) / 100;
+  const lab = P.map((_, i) => i % 2);
+  const COL = [D.colors[0], D.colors[1]];
+  say('brain', `Last step: calibrate the machine. Click the samples to sort them into <b>two clusters</b> until the silhouette score reaches <b>${TARGET.toFixed(2)}</b>.`);
+  const el = h(`<div class="scene">
+    <span class="kicker">Step IV · Two clusters, one silhouette score</span>
+    <svg class="plot" viewBox="0 0 410 270" role="img" aria-label="Samples to sort into two clusters">
+      ${P.map((p, i) => `<circle data-i="${i}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="9"></circle>`).join('')}
+    </svg>
+    <div class="meter"><div class="lab"><span>Silhouette score <b id="sv">0.00</b></span><span>Brain needs <b>${TARGET.toFixed(2)}</b></span></div>
+      <div class="track"><i id="sbar"></i><em style="left:${TARGET * 100}%"></em></div></div>
+  </div>`);
+  const dots = [...el.querySelectorAll('circle')];
+  let clicks = 0, done = false;
+  const render = () => {
+    dots.forEach((d, i) => d.setAttribute('fill', COL[lab[i]]));
+    const s = sil(lab);
+    el.querySelector('#sv').textContent = s.toFixed(2);
+    const bar = el.querySelector('#sbar');
+    bar.style.width = Math.max(0, s) * 100 + '%';
+    bar.classList.toggle('ok', s >= TARGET);
+    footer(`Clicks <b>${clicks}</b>`);
+    return s;
+  };
+  dots.forEach((d, i) => d.onclick = () => {
+    if (done) return;
+    lab[i] = 1 - lab[i]; clicks += 1;
+    const s = render();
+    if (clicks === 3) say('pinky', 'Ooh, Brain, can I make one of them purple? Just one?');
+    if (clicks === 9 && s < TARGET) say('brain', 'Closer. The samples in the middle decide it, Pinky. Put each one with its nearest group.');
+    if (s >= TARGET - 1e-9) {
+      done = true;
+      say('brain', `A silhouette of ${s.toFixed(2)}. The machine is calibrated. Nothing can stop us now.`);
+      later(() => go(4), 1500);
+    }
+  });
+  render();
+  return el;
+}
+
+// V. the button: it always goes wrong, and every night in a different way
+const TWISTS = [
+  {name: 'The cord', title: 'Pinky unplugged the machine at 99%.', run(ctx) {
+    ctx.progress(99, 3400, () => {
+      ctx.label('Stuck at 99%…');
+      later(() => say('pinky', 'Ooh, Brain, what does this cord do?'), 700);
+      later(() => { ctx.dark('click.'); ctx.label('Power lost'); }, 2300);
+      later(() => say('brain', 'Pinky. That cord <b>was</b> the plan.'), 3400);
+      later(ctx.fail, 5200);
+    });
+  }},
+  {name: 'The compression', title: `PCA squeezed the world into 2 dimensions and kept ${D.kept}% of it. The Brain was in the other ${D.lost}%.`, run(ctx) {
+    ctx.progress(100, 3400, () => {
+      ctx.label('Done. The world now fits in 2 dimensions.');
+      ctx.globe('flat');
+      later(() => say('brain', 'Yes! The world is <b>mine</b>!'), 500);
+      later(() => say('pinky', `Brain, the screen says it kept only ${D.kept}% of the world. Which part were you in?`), 2200);
+      later(() => say('brain', `…The other ${D.lost}%.`), 4300);
+      later(ctx.fail, 6000);
+    });
+  }},
+  {name: 'The clusters', title: 'K-Means sorted 8 billion people into two clusters: the Brain, and everybody else.', run(ctx) {
+    ctx.progress(100, 3400, () => {
+      ctx.label('Clustering the world · k = 2');
+      ctx.globe('split');
+      later(() => say('brain', 'Two clusters: those who obey me, and…'), 500);
+      later(() => say('pinky', 'Everyone is in the other one, Brain! Even me, a little bit.'), 2300);
+      later(() => say('brain', 'The silhouette score is <b>excellent</b>. That is the worst part.'), 4300);
+      later(ctx.fail, 6000);
+    });
+  }},
+  {name: 'The cheese', title: 'The power crystal was a block of cheddar.', run(ctx) {
+    ctx.progress(64, 2600, () => {
+      ctx.label('Power source: not recognised');
+      ctx.globe('cheese');
+      later(() => say('brain', 'Pinky, why does the machine smell like cheddar?'), 600);
+      later(() => say('pinky', 'You said bring the big yellow crystal, Brain! This was the biggest one. Narf!'), 2400);
+      later(ctx.fail, 4800);
+    });
+  }},
+];
+function buttonStage() {
+  let dodges = 0, dodgedAt = 0, fired = false;
+  const DODGE = ['Hold still, you insolent button!', 'Pinky, did you oil the button again?', 'Fine. I shall approach it very slowly.'];
+  say('brain', 'Everything is ready, Pinky. One button. Press it, and <b>the world is ours</b>.');
+  const el = h(`<div class="scene">
+    <span class="kicker">Step V · The big red button</span>
+    <div class="machine"><div class="globe" id="globe"></div><div class="mlabel"><b>The PCA-o-tron</b>77 proteins in, 2 dimensions out · ready</div></div>
+    <div class="arena" id="arena"><button class="red" id="red">Take over the world</button></div>
+    <div class="prog"><div class="lab"><span id="plab">Waiting for the button</span><b id="pval">0%</b></div><div class="track"><i id="pfill" style="width:0"></i></div></div>
+    <div class="dark" id="dark"></div>
+  </div>`);
+  const red = el.querySelector('#red'), arena = el.querySelector('#arena');
+  const dodge = () => {
+    dodges += 1; dodgedAt = performance.now();
+    const W = arena.clientWidth, H = arena.clientHeight, s = red.offsetWidth;
+    const cur = red.offsetLeft;
+    let x;
+    do { x = Math.random() * Math.max(1, W - s); } while (Math.abs(x - cur) < s * .8 && W > s * 2.2);
+    red.style.left = x + 'px';
+    red.style.top = (Math.random() * Math.max(1, H - s - 12)) + 'px';
+    say('brain', DODGE[dodges - 1]);
+  };
+  red.addEventListener('pointerenter', e => { if (!fired && e.pointerType === 'mouse' && dodges < DODGE.length) dodge(); });
+  red.addEventListener('pointerdown', e => { if (!fired && e.pointerType !== 'mouse' && dodges < DODGE.length) dodge(); });
+  red.onclick = e => {
+    if (fired) return;
+    const keyboard = e.detail === 0;
+    if (!keyboard && (dodges < DODGE.length || performance.now() - dodgedAt < 450)) return;
+    fired = true;
+    red.disabled = true;
+    red.classList.add('down');
+    const twist = TWISTS[nights % TWISTS.length];
+    say('brain', 'At last! Stand back, Pinky. History is about to be made.');
+    footer('Plan running…');
+    const ctx = {
+      label: t => { el.querySelector('#plab').textContent = t; },
+      globe: c => el.querySelector('#globe').classList.add(c),
+      dark: t => { const d = el.querySelector('#dark'); d.textContent = t; d.classList.add('on'); },
+      progress(to, dur, done) {
+        const steps = ['Compressing the world into 2 dimensions…', 'Running K-Means on 8 billion people…', 'Making the Brain the centre of every cluster…'];
+        const t0 = performance.now();
+        const tick = now => {
+          const k = Math.min(1, (now - t0) / dur), v = to * (1 - Math.pow(1 - k, 2));
+          el.querySelector('#pfill').style.width = v + '%';
+          el.querySelector('#pval').textContent = Math.floor(v) + '%';
+          if (k < 1) { ctx.label(steps[Math.min(2, Math.floor(k * 3))]); requestAnimationFrame(tick); }
+          else done();
+        };
+        requestAnimationFrame(tick);
+      },
+      fail: () => failScene(twist),
+    };
+    twist.run(ctx);
+  };
+  return el;
+}
+
+// the end of every night: the plan failed, as it always does
+function failScene(twist) {
+  clearTimers();
+  nights += 1;
+  saveNights();
+  stage = 4;
+  pips(true);
+  footer('Worlds taken over: <b>0</b>');
+  $('footL').innerHTML = `Night <b>#${nights}</b> · the plan failed`;
+  $('sub').textContent = `Four puzzles and one big red button. Night #${nights} of trying.`;
+  say('brain', 'Tomorrow night, Pinky, we try again.');
+  later(() => say('pinky', 'Narf! What are we going to do tomorrow night, Brain?'), 2400);
+  later(() => say('brain', 'What we always do, Pinky. <b>Try to take over the world.</b>'), 4600);
+  const el = h(`<div class="scene fail">
+    <span class="kicker">Plan #${nights} · ${twist.name}</span>
+    <h2>Same time <em>tomorrow night.</em></h2>
+    <p>${twist.title}</p>
+    <div class="stamp">Plan failed</div>
+    <div class="stats"><div><b>${nights}</b><span>nights tried</span></div><div><b class="zero">0</b><span>worlds taken over</span></div><div><b>4/4</b><span>puzzles solved</span></div></div>
+    <div class="row-btns"><button class="btn" id="again">Try again tomorrow night</button><button class="btn ghost" id="skip">Skip to the big red button</button></div>
+    <small>Every night the plan fails in a new way. There are ${TWISTS.length} ways so far.</small>
+  </div>`);
+  el.querySelector('#again').onclick = () => go(0);
+  el.querySelector('#skip').onclick = () => { say('brain', 'We did the preparations yesterday, Pinky. Straight to the button.'); go(4); };
+  mount(el);
+}
+
+const STAGES = [lockStage, memoryStage, lightsStage, clusterStage, buttonStage];
+go(0);
+</script>
+</body>
+</html>

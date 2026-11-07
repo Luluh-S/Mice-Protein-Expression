@@ -21,6 +21,7 @@ st.set_page_config(page_title="Pondering the Clusters",
                    layout="wide", initial_sidebar_state="collapsed")
 
 BASE_CSS = (HERE / "components" / "base.css").read_text(encoding="utf-8")
+MOTION_JS = (HERE / "components" / "motion.js").read_text(encoding="utf-8")
 DATASET_URL = "https://archive.ics.uci.edu/dataset/342/mice+protein+expression"
 
 # chart colours, picked to read on the light page: Pinky pink, navy, green, gold and friends (data only)
@@ -29,10 +30,11 @@ PALETTE = [PINK, GREEN, GOLD, NAVY, "#8e5bd1", "#e0773a", "#2a9fb5", "#c2449b", 
 NOISE = "#c9ccd8"
 
 COURSES = ["Intro", "The plan", "The experiment", "Lab prep", "Before PCA", "Brain's shortcut", "After PCA",
-           "The verdict", "Lab tests"]
+           "The verdict", "Lab tests", "The game"]
 NEXT_LABELS = {"Intro": "the intro", "The experiment": "the experiment", "The plan": "the plan", "Lab prep": "the lab prep",
                "Before PCA": "clustering before PCA", "Brain's shortcut": "PCA at work",
-               "After PCA": "clustering after PCA", "The verdict": "the verdict", "Lab tests": "the bonus experiments"}
+               "After PCA": "clustering after PCA", "The verdict": "the verdict", "Lab tests": "the bonus experiments",
+               "The game": "the game"}
 
 
 SHOW_COUNT = [0]
@@ -109,7 +111,7 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 iframe { border: 0 !important; display: block; }
 [data-testid="stHeaderActionElements"] { display: none !important; }
 [data-testid="stMarkdownContainer"] p { font-size: 16px; line-height: 1.65; color: var(--ink); }
-.st-key-scrolltop, .st-key-localefix { height: 0; overflow: hidden; margin: 0 !important; position: absolute; }
+.st-key-scrolltop, .st-key-localefix, .st-key-motion { height: 0; overflow: hidden; margin: 0 !important; position: absolute; }
 
 /* ---- header: one opaque bar, 1px hairline, the same at every scroll depth ---- */
 [data-testid="stLayoutWrapper"]:has(> .st-key-topbar), .st-key-topbar { position: sticky; top: 0; z-index: 990; }
@@ -124,9 +126,9 @@ iframe { border: 0 !important; display: block; }
 .st-key-topbar [data-testid="stWidgetLabel"] p { font: 500 12px var(--font-text) !important; color: var(--muted); }
 
 /* the page menu: plain words, the current one carries a 2px pink bar */
-.st-key-nav [data-testid="stButtonGroup"] > div { background: transparent !important; border: 0 !important; padding: 0 !important; gap: 4px !important; }
+.st-key-nav [data-testid="stButtonGroup"] > div { background: transparent !important; border: 0 !important; padding: 0 !important; gap: 2px !important; }
 .st-key-nav [data-testid="stButtonGroup"] button { background: transparent !important; box-shadow: none !important; border-radius: 0 !important;
-  padding: 10px 7px 12px !important; min-height: 40px; color: var(--muted) !important; }
+  padding: 10px 5px 12px !important; min-height: 40px; color: var(--muted) !important; }
 .st-key-nav [data-testid="stButtonGroup"] button p { font: 500 14px var(--font-text) !important; white-space: nowrap; }
 .st-key-nav [data-testid="stButtonGroup"] button:hover { color: var(--ink) !important; background: transparent !important; box-shadow: inset 0 -1px 0 var(--line-2) !important; }
 .st-key-nav [data-testid="stButtonGroup"] button[aria-checked="true"], .st-key-nav [data-testid="stButtonGroup"] button[aria-checked="true"]:hover {
@@ -470,6 +472,7 @@ button:focus-visible { outline: 2px solid var(--accent) !important; outline-offs
   [class*="st-key-cmp_hero"], [class*="st-key-cmp_hero"] div, [class*="st-key-cmp_hero"] iframe { height: 980px !important; max-height: none !important; }
   [class*="st-key-cmp_scatter"], [class*="st-key-cmp_scatter"] div, [class*="st-key-cmp_scatter"] iframe { height: 820px !important; max-height: none !important; }
   [class*="st-key-cmp_verdict"], [class*="st-key-cmp_verdict"] div, [class*="st-key-cmp_verdict"] iframe { height: 900px !important; max-height: none !important; }
+  [class*="st-key-cmp_game"], [class*="st-key-cmp_game"] div, [class*="st-key-cmp_game"] iframe { height: 1080px !important; max-height: none !important; }
 }
 @media (max-width: 640px) {
   [data-testid="stMainBlockContainer"], .block-container { padding: 0 14px; }
@@ -522,14 +525,95 @@ button:focus-visible { outline: 2px solid var(--accent) !important; outline-offs
   .tt-member svg { width: 92px; height: 92px; margin-bottom: 10px; }
   .tt-member b { font-size: 22px; }
 }
+
+/* ================= motion layer ================= */
+/* header: the fill-missing control stays on one line */
+.st-key-strategy [data-testid="stButtonGroup"] > div { flex-wrap: nowrap !important; }
+.st-key-strategy [data-testid="stButtonGroup"] button { padding: 5px 10px !important; }
+/* reading progress along the bottom of the header */
+.pc-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); transform-origin: 0 50%;
+  transform: scaleX(0); pointer-events: none; transition: transform 90ms linear; border-radius: 2px; }
+/* a live score flashes when it changes */
+.pc-live b { border-radius: 6px; padding: 0 2px; }
+.pc-live b.pc-flash { animation: pcFlash 900ms var(--ease); }
+@keyframes pcFlash { 0% { background: rgba(217,85,122,.2); box-shadow: 0 0 0 4px rgba(217,85,122,.2); } 100% { background: transparent; box-shadow: 0 0 0 4px rgba(217,85,122,0); } }
+/* leaving a page: the old one fades out before the new one comes in */
+html.pc-leaving [data-testid="stLayoutWrapper"]:has(> .st-key-topbar) ~ * { opacity: 0; transition: opacity 160ms var(--ease); }
+/* page titles: the outlined number fills up, the words rise one by one */
+.pc-sec .num { background: linear-gradient(to top, rgba(217,85,122,.16) 50%, transparent 50%); background-size: 100% 200%;
+  background-position: 0 0; -webkit-background-clip: text; background-clip: text; animation: pcFill 1200ms var(--ease) 250ms both;
+  transition: -webkit-text-stroke-color 200ms var(--ease); }
+.pc-sec:hover .num { -webkit-text-stroke-color: var(--accent); }
+@keyframes pcFill { from { background-position: 0 0; } to { background-position: 0 100%; } }
+.pc-sec h2 .pc-w { display: inline-block; animation: pcWord 620ms var(--ease) both; animation-delay: calc(var(--i) * 70ms + 120ms); }
+@keyframes pcWord { from { opacity: 0; transform: translateY(.35em); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+/* cards and rows answer the pointer (translate, so it adds to their entrance animation) */
+.pc-qa { animation: pcIn 520ms var(--ease) both; transition: translate 200ms var(--ease), box-shadow 200ms var(--ease), border-color 200ms var(--ease); }
+.pc-qa:nth-child(2) { animation-delay: 80ms; } .pc-qa:nth-child(3) { animation-delay: 160ms; } .pc-qa:nth-child(4) { animation-delay: 240ms; }
+.pc-qa:hover { translate: 0 -4px; box-shadow: 0 16px 34px rgba(29,35,64,.08); border-color: rgba(217,85,122,.45); }
+.pc-qa .n { display: inline-block; transition: transform 200ms var(--ease); }
+.pc-qa:hover .n { transform: translateX(4px); }
+.pc-rows li { transition: padding 180ms var(--ease); }
+.pc-rows li:hover { padding-left: 8px; padding-right: 8px; }
+.pc-rows li:hover span { color: var(--accent); }
+.pc-list li { transition: color 180ms var(--ease); }
+.pc-list li:hover { color: var(--ink); }
+.pc-figs > div { animation: pcIn 480ms var(--ease) both; }
+.pc-figs > div:nth-child(2) { animation-delay: 70ms; } .pc-figs > div:nth-child(3) { animation-delay: 140ms; } .pc-figs > div:nth-child(4) { animation-delay: 210ms; }
+.pc-note { transition: border-color 200ms var(--ease), padding 200ms var(--ease); }
+.pc-note:hover { padding-left: 30px; }
+.pc-note-mouse { transition: transform 220ms var(--ease); }
+.pc-note:hover .pc-note-mouse { transform: rotate(-6deg) translateY(-3px); }
+.pb-card, .pb-scene { transition: translate 200ms var(--ease), box-shadow 200ms var(--ease); }
+.pb-card:hover, .pb-scene:hover { translate: 0 -3px; box-shadow: 0 12px 28px rgba(29,35,64,.07); }
+.pb-zoom .pb-card:hover, .pb-flip .pb-face { translate: none; }
+/* the plan menu: every row opens its page */
+.pc-menu .row { position: relative; cursor: pointer; animation: pcIn 480ms var(--ease) both; animation-delay: calc(var(--i, 0) * 70ms + 150ms); outline: none; }
+.pc-menu .row::before { content: ""; position: absolute; inset: 0 -20px; background: var(--accent-soft); border-radius: 10px; opacity: 0;
+  transform: scaleX(.97); transition: opacity 180ms var(--ease), transform 180ms var(--ease); }
+.pc-menu .row > * { position: relative; }
+.pc-menu .row:hover::before, .pc-menu .row:focus-visible::before { opacity: .6; transform: none; }
+.pc-menu .row .name { transition: transform 200ms var(--ease), color 180ms var(--ease); }
+.pc-menu .row:hover .name, .pc-menu .row:focus-visible .name { transform: translateX(8px); color: var(--accent); }
+.pc-menu .row .dots { transition: border-color 180ms var(--ease); }
+.pc-menu .row:hover .dots { border-bottom-color: var(--accent); }
+.pc-menu .row::after { content: "→"; position: absolute; right: -36px; top: 50%; font: 400 20px var(--font-text); color: var(--accent);
+  opacity: 0; transform: translate(-8px, -50%); transition: opacity 180ms var(--ease), transform 180ms var(--ease); }
+.pc-menu .row:hover::after, .pc-menu .row:focus-visible::after { opacity: 1; transform: translate(0, -50%); }
+.pc-menu .row:active .name { transform: translateX(10px) scale(.99); }
+.st-key-plango { position: absolute !important; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
+/* the heroes: Pinky and the Brain follow the pointer a little, at different depths */
+.tt-hero { background: radial-gradient(640px 320px at calc(50% + var(--mx, 0) * 40%) calc(var(--my, 0) * 30%), var(--accent-soft), transparent 70%), var(--surface); }
+.tt-hero img, .pb-hero .mice img { translate: calc(var(--mx, 0) * var(--depth, 16px)) calc(var(--my, 0) * var(--depth, 16px) * .6); transition: translate 260ms var(--ease); }
+.tt-hero .tt-pinky, .pb-hero .mice img:first-child { --depth: -28px; }
+.tt-hero .tt-brain, .pb-hero .mice img:last-child { --depth: 18px; }
+/* the team: portraits assemble pixel by pixel, then blink and tilt on hover */
+.tt-member .px { transform-box: fill-box; transform-origin: 50% 50%; animation: pxIn 320ms var(--ease) both; }
+@keyframes pxIn { from { opacity: 0; transform: scale(.2); } to { opacity: 1; transform: none; } }
+.tt-member svg { transition: transform 220ms var(--ease); }
+.tt-member:hover svg { transform: rotate(-4deg) scale(1.04); }
+.tt-member:hover .eye { animation: pxBlink 1800ms var(--ease) infinite; }
+@keyframes pxBlink { 0%, 40%, 54%, 100% { transform: none; } 47% { transform: scaleY(.1); } }
+.tt-member b { transition: color 180ms var(--ease); }
+.tt-member:hover b { color: var(--accent); }
+@media (max-width: 900px) {
+  .pc-menu .row::before { inset: 0 -8px; }
+  .pc-menu .row::after { display: none; }
+}
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 """)
 
 
+def _words(text, start=0):
+    """Wrap each word in a span, numbered from start, for the word-by-word title entrance."""
+    return " ".join(f'<span class="pc-w" style="--i:{start + i}">{w}</span>' for i, w in enumerate(text.split()))
+
+
 def section(num, eyebrow, title, subtitle, text):
+    n = len(title.split())
     html(f'<div class="pc-sec"><div class="num">{num}</div><div><div class="eyebrow">{eyebrow}</div>'
-         f'<h2>{title} <em>{subtitle}</em></h2><p>{text}</p></div></div>')
+         f'<h2>{_words(title)} <em>{_words(subtitle, n)}</em></h2><p>{text}</p></div></div>')
 
 
 def figures(items):
@@ -858,7 +942,7 @@ def _mix(a, b, t):
     return "#" + "".join(f"{round(x + (y - x) * t):02x}" for x, y in zip(ca, cb))
 
 
-def avatar(i, hijab, skin, bg, extra=None, hair="#2b2220"):
+def avatar(i, hijab, skin, bg, extra=None, hair="#2b2220", delay=0.0):
     """A pixel-art portrait in a white lab coat, drawn as crisp SVG squares."""
     rows = list(PX_HIJAB if hijab else PX_MAN)
     for y, row in PX_EXTRA.get(extra, {}).items():
@@ -883,7 +967,11 @@ def avatar(i, hijab, skin, bg, extra=None, hair="#2b2220"):
             while x + run < len(row) and row[x + run] == ch:
                 run += 1
             if ch != ".":
-                rects += f'<rect x="{x}" y="{y}" width="{run}" height="1.04" fill="{colours[ch]}"/>'
+                # pixels appear top to bottom, left to right, like the portrait is being printed
+                d = delay + y * 0.028 + x * 0.006
+                cls = "px eye" if ch == "E" else "px"
+                rects += (f'<rect class="{cls}" style="animation-delay:{d:.3f}s" x="{x}" y="{y}" width="{run}" '
+                          f'height="1.04" fill="{colours[ch]}"/>')
             x += run
     return (f'<svg viewBox="0 0 120 120" aria-hidden="true" shape-rendering="crispEdges">'
             f'<defs><clipPath id="av{i}"><circle cx="60" cy="60" r="55"/></clipPath></defs>'
@@ -904,7 +992,7 @@ def render_title():
 <div class="tt-team-label">The team</div>
 """)
     cards = "".join(
-        f'<div class="tt-member" style="animation-delay:{0.15 + i * 0.12:.2f}s">{avatar(i, h, sk, bg, ex)}<b>{name}</b></div>'
+        f'<div class="tt-member" style="animation-delay:{0.15 + i * 0.12:.2f}s">{avatar(i, h, sk, bg, ex, delay=0.3 + i * 0.12)}<b>{name}</b></div>'
         for i, (name, h, sk, bg, ex) in enumerate(TEAM))
     html(f'<div class="tt-team">{cards}</div>')
 
@@ -993,7 +1081,7 @@ with st.container(key="topbar"):
     b1.markdown('<div class="pc-brand">Pondering the Clusters <small>K-Means before and after PCA</small></div>',
                 unsafe_allow_html=True)
     live = b2.empty()
-    n1, n2, n3 = st.columns([3.4, 0.7, 0.9], vertical_alignment="bottom", gap="medium")
+    n1, n2, n3 = st.columns([3.55, 0.68, 0.85], vertical_alignment="bottom", gap="medium")
     with n1:
         with st.container(key="nav"):
             course = st.segmented_control("Page", COURSES, key="course", required=True,
@@ -1011,12 +1099,17 @@ script("const w = window.parent; try {"
        "w.document.documentElement.setAttribute('lang', 'en'); w.document.documentElement.setAttribute('dir', 'ltr');"
        "w.dispatchEvent(new Event('languagechange')); } catch (e) {}", "localefix")
 
-# a new page opens at the top
+# the motion layer: installed once into the page itself (see components/motion.js)
+script("const w = window.parent; if (!w.__pcFx) { const s = w.document.createElement('script'); s.textContent = "
+       + json.dumps(MOTION_JS) + "; w.document.head.appendChild(s); }", "motion")
+
+# a new page opens at the top, and its blocks come in one after another
 if st.session_state.get("last_course") != course:
     st.session_state.last_course = course
     script("/* " + course + " */ const d = window.parent.document; window.parent.scrollTo(0, 0);"
            "d.querySelectorAll('[data-testid=\"stMain\"], [data-testid=\"stAppViewContainer\"], section.main')"
-           ".forEach(e => e.scrollTo(0, 0));", "scrolltop")
+           ".forEach(e => e.scrollTo(0, 0)); try { window.parent.__pcEnter && window.parent.__pcEnter(); } catch (e) {}",
+           "scrolltop")
 
 X_filled, X_scaled = preprocess(strategy)
 var_all, var_2, X_pca, pc3, loadings = run_pca(X_scaled)
@@ -1085,11 +1178,15 @@ elif course == "The plan":
             ("VII", "Lab tests", "More components, and hierarchical clustering"),
         ]
         rows = "".join(
-            f'<div class="row {"bonus" if no == "VII" else ""}"><span class="no">{no}</span><span class="name">{name}</span>'
-            f'<span class="dots"></span><span class="desc">{desc}</span></div>' for no, name, desc in menu)
+            f'<div class="row {"bonus" if no == "VII" else ""}" style="--i:{i}"><span class="no">{no}</span><span class="name">{name}</span>'
+            f'<span class="dots"></span><span class="desc">{desc}</span></div>' for i, (no, name, desc) in enumerate(menu))
         html(f"""<div class="pc-menu"><div class="top"><div class="lab">Tonight's plan to take over the world</div>
 <h3>Six steps <em>and a bonus</em></h3><p>One step of the project on every page. Walk them in order with the
 menu above, or with the button at the foot of each page.</p></div>{rows}</div>""")
+        # one hidden button per row: clicking a row presses its button (see the motion script)
+        with st.container(key="plango"):
+            for i, (no, name, desc) in enumerate(menu):
+                st.button(name, key=f"plango_{i}", on_click=go_to, args=(name,))
 
     gap(96)
     html("""
@@ -1175,7 +1272,7 @@ elif course == "Lab prep":
             centers = (edges[:-1] + edges[1:]) / 2
             with box:
                 show("chart", {
-                    "type": "line", "title": name,
+                    "key": f"hist_{name}", "type": "line", "title": name,
                     "subtitle": f"Mean {abs(values.mean()):.3f} · Std {values.std():.3f}",
                     "x": [f"{c:.2f}" for c in centers], "xName": protein, "xLabel": protein,
                     "bars": {"values": [int(c) for c in counts], "color": color, "name": "Samples", "fmt": "int"},
@@ -1194,14 +1291,14 @@ elif course == "Before PCA":
     a, b = st.columns(2, gap="medium")
     with a:
         show("chart", {
-            "type": "line", "title": "Elbow method", "subtitle": "Inertia for k = 1 to 10",
+            "key": "elbow", "type": "line", "title": "Elbow method", "subtitle": "Inertia for k = 1 to 10",
             "x": list(range(1, 11)), "xName": "k =", "xLabel": "Number of clusters",
             "series": [{"name": "Inertia", "values": inertia, "color": PINK, "fmt": "int"}],
             "yFmt": "k", "hi": k - 1, "hiLabel": f"k = {k}", "area": True,
         }, 360)
     with b:
         show("chart", {
-            "type": "line", "title": "Silhouette score for each k", "subtitle": "Higher means better separated",
+            "key": "silk", "type": "line", "title": "Silhouette score for each k", "subtitle": "Higher means better separated",
             "x": list(range(1, 11)), "xName": "k =", "xLabel": "Number of clusters",
             "series": [{"name": "Silhouette", "values": scores, "color": GREEN}],
             "hi": k - 1, "hiLabel": f"k = {k}", "tickDec": 2, "area": True,
@@ -1220,7 +1317,7 @@ elif course == "Before PCA":
         with b:
             sizes = np.bincount(clusters_before, minlength=k)
             show("chart", {
-                "type": "line", "title": "Cluster sizes", "subtitle": "Samples in each K-Means cluster",
+                "key": "sizes", "type": "line", "title": "Cluster sizes", "subtitle": "Samples in each K-Means cluster",
                 "x": [f"C{i + 1}" for i in range(k)], "xName": "Cluster",
                 "bars": {"values": [int(s) for s in sizes], "colors": PALETTE[:k], "name": "Samples", "fmt": "int", "labels": True},
                 "yFmt": "int", "tickDec": 0,
@@ -1236,7 +1333,7 @@ elif course == "Brain's shortcut":
              ("Kept with 2 components", f"{kept * 100:.1f}%", ""), ("Lost", f"{(1 - kept) * 100:.1f}%", "")])
     cum = np.cumsum(var_all)
     show("chart", {
-        "type": "line", "title": "Explained variance", "subtitle": "Each component, and the running total",
+        "key": "variance", "type": "line", "title": "Explained variance", "subtitle": "Each component, and the running total",
         "x": list(range(1, 31)), "xName": "Component", "xLabel": "Number of components",
         "bars": {"values": r3(var_all[:30] * 100), "color": GOLD, "name": "This component", "fmt": "pct100", "dec": 1},
         "series": [{"name": "Running total", "values": r3(cum[:30] * 100), "color": PINK, "fmt": "pct100", "dec": 1}],
@@ -1262,7 +1359,7 @@ elif course == "Brain's shortcut":
         top = pd.Series(np.abs(loadings[idx]), index=X.columns).sort_values(ascending=False).head(10)
         gap(8)
         show("chart", {
-            "type": "hbar", "title": f"Top 10 proteins in {pc}",
+            "key": "loadings", "type": "hbar", "title": f"Top 10 proteins in {pc}",
             "subtitle": "How strongly each protein builds this component (|loading|)",
             "labels": list(top.index), "values": r3(top.values), "xMax": float(top.values.max()) * 1.18,
             "color": PINK if idx == 0 else GREEN,
@@ -1301,13 +1398,15 @@ elif course == "After PCA":
         "behavior|p23": "There it is: the two behavior groups split along PC2. PCA found the learning signal without ever seeing the labels.",
     }
     show("scatter", {
-        "title": "The world map", "subtitle": "1,080 samples on the PCA map. Hover a point or a group.",
+        "key": "world", "title": "The world map", "subtitle": "1,080 samples on the PCA map. Hover a point or a group.",
         "ids": list(df["MouseID"]), "cls": list(df["class"]),
         "x": {"pc1": r3(X_pca[:, 0]), "pc2": r3(X_pca[:, 1]), "pc3": r3(pc3)},
         "modes": modes, "mode": "after",
         "views": [{"id": "p12", "label": "PC1 × PC2", "x": "pc1", "y": "pc2", "xl": "PC1", "yl": "PC2"},
                   {"id": "p23", "label": "PC2 × PC3", "x": "pc2", "y": "pc3", "xl": "PC2", "yl": "PC3"}],
         "view": "p12", "notes": notes,
+        "tour": [{"mode": "after", "view": "p12"}, {"mode": "before", "view": "p12"},
+                 {"mode": "behavior", "view": "p12"}, {"mode": "behavior", "view": "p23"}],
     }, 740)
     gap(48)
     a, b = st.columns(2, gap="large")
@@ -1371,7 +1470,7 @@ elif course == "Lab tests":
     gap(8)
     rows = components_test(X_scaled, k)
     show("chart", {
-        "type": "line", "title": f"Silhouette score vs components (k = {k})",
+        "key": "components", "type": "line", "title": f"Silhouette score vs components (k = {k})",
         "subtitle": "More components keep more information, but the clusters get less separated",
         "x": [r[0] for r in rows], "xName": "Components:", "xLabel": "Number of PCA components",
         "series": [{"name": "Silhouette score", "values": [r[1] for r in rows], "color": PINK},
@@ -1396,7 +1495,7 @@ elif course == "Lab tests":
         figures([("Clusters", k, ""), ("Hierarchical silhouette", f"{hc_score:.3f}", ""),
                  ("K-Means silhouette", f"{score_after:.3f}", "")])
         show("scatter", {
-            "title": f"Hierarchical clustering ({linkage} linkage, k = {k})",
+            "key": "hier", "title": f"Hierarchical clustering ({linkage} linkage, k = {k})",
             "subtitle": "Switch to K-Means to compare the two on the same PCA map.",
             "ids": list(df["MouseID"]), "cls": list(df["class"]),
             "x": {"pc1": r3(X_pca[:, 0]), "pc2": r3(X_pca[:, 1])},
@@ -1415,5 +1514,25 @@ elif course == "Lab tests":
              f"<b>{score_after:.3f}</b> for K-Means. "
              + ("Here it does better than K-Means." if better else
                 "It finds sensible groups, but <b>K-Means is still the better choice</b> for this data."))
+
+# ---------------- The game ----------------
+
+elif course == "The game":
+    section("08", "Bonus game", "Take over the world", "a puzzle game",
+            "Four quick puzzles and one big red button, all built from this project: the lab door, the protein "
+            "sequence, the power grid and a silhouette score. Help the Brain finish tonight's plan. Five minutes, tops.")
+    show("game", {
+        "brain": _img_src("brain.png"), "pinky": _img_src("pinky.png"),
+        # the door code comes from the project itself: mouse groups, PCA components, team members
+        "code": [int(df["class"].nunique()), 2, len(TEAM)],
+        "clues": ["How many groups of mice are in the data?", "How many components does PCA keep?",
+                  "How many people made this project?"],
+        "beakers": [{"name": "NR1", "color": PINK}, {"name": "ERK", "color": GREEN},
+                    {"name": "BDNF", "color": GOLD}, {"name": "SOD1", "color": NAVY}],
+        "colors": [PINK, NAVY],
+        "kept": f"{kept * 100:.1f}", "lost": f"{(1 - kept) * 100:.1f}",
+    }, 720)
+    gap(40)
+    note("Pinky's note", "Brain says nothing can go wrong this time. He says that every night. Narf!", who="pinky")
 
 next_prev()

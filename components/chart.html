@@ -17,7 +17,7 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .axlabel { font: 500 13px var(--font-text); fill: var(--muted); }
 .line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 900ms var(--ease-io); }
 .line.dash { stroke-dasharray: 1; }
-.dot { opacity: 0; transition: opacity 300ms var(--ease) 650ms, r 140ms var(--ease); }
+.dot { opacity: 0; transition: opacity 300ms var(--ease) 650ms, r 140ms var(--ease), stroke-width 140ms var(--ease); stroke: currentColor; stroke-opacity: .18; stroke-width: 0; }
 .bar { transform: scaleY(0); transform-box: fill-box; transform-origin: 50% 100%; transition: transform 700ms var(--ease); }
 .hbar { transform: scaleX(0); transform-box: fill-box; transform-origin: 0 50%; transition: transform 700ms var(--ease); }
 .vlab { opacity: 0; transition: opacity 300ms var(--ease) 600ms; font: 600 12px var(--font-text); fill: var(--ink); }
@@ -44,6 +44,9 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 </div>
 <script>
 const D = /*DATA*/null;
+// charts remember their last values (per key) so an update morphs instead of redrawing
+const memo = (() => { try { return window.parent.__pcCharts || (window.parent.__pcCharts = {}); } catch (e) { return {}; } })();
+const KEY = D.key || null;
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const plot = document.getElementById('plot');
 const tip = document.getElementById('tip');
@@ -127,7 +130,9 @@ function render() {
     se.values.forEach((v, i) => { if (v != null) s += `<circle class="dot" data-s="${si}" data-i="${i}" cx="${X(i)}" cy="${Y(v)}" r="3.5" fill="${se.color}"/>`; });
   });
   if (D.hi !== undefined && D.hi !== null && D.series) {
-    const v = D.series[0].values[D.hi];
+    const i0 = Math.floor(D.hi), i1 = Math.min(D.series[0].values.length - 1, Math.ceil(D.hi));
+    const va = D.series[0].values[i0], vb = D.series[0].values[i1];
+    const v = va == null ? vb : vb == null ? va : va + (vb - va) * (D.hi - i0);
     const ly = D.hiBelow ? Y(v) + 24 : Y(v) - 12;
     s += `<circle class="ring dot" cx="${X(D.hi)}" cy="${Y(v)}" r="9"/><text class="hilab dot" x="${X(D.hi) + 14}" y="${ly}">${esc(D.hiLabel || '')}</text>`;
   }
@@ -146,7 +151,7 @@ function render() {
     const r = svg.getBoundingClientRect();
     const i = Math.max(0, Math.min(n - 1, Math.floor((e.clientX - r.left - m.l) / band)));
     guide.setAttribute('x1', X(i)); guide.setAttribute('x2', X(i)); guide.classList.add('on');
-    svg.querySelectorAll('.dot[data-i]').forEach(d => d.setAttribute('r', +d.dataset.i === i ? 5.5 : 3.5));
+    svg.querySelectorAll('.dot[data-i]').forEach(d => { const on = +d.dataset.i === i; d.setAttribute('r', on ? 5.5 : 3.5); d.style.stroke = d.getAttribute('fill'); d.style.strokeWidth = on ? '10px' : '0'; });
     svg.querySelectorAll('.bar').forEach(b => b.classList.toggle('dim', +b.dataset.i !== i));
     let html = `<b>${esc(D.xName ? D.xName + ' ' : '')}${esc(D.x[i])}</b>`;
     if (D.bars) html += `<br><span class="sw" style="background:${D.bars.colors ? D.bars.colors[i] : D.bars.color}"></span>${esc(D.bars.name || '')} ${fmt(D.bars.values[i], D.bars.fmt || D.yFmt, D.bars.dec)}`;
@@ -159,7 +164,7 @@ function render() {
   });
   hit.addEventListener('mouseleave', () => {
     guide.classList.remove('on'); tip.classList.remove('on');
-    svg.querySelectorAll('.dot[data-i]').forEach(d => d.setAttribute('r', 3.5));
+    svg.querySelectorAll('.dot[data-i]').forEach(d => { d.setAttribute('r', 3.5); d.style.strokeWidth = '0'; });
     svg.querySelectorAll('.bar').forEach(b => b.classList.remove('dim'));
   });
 }
@@ -192,7 +197,34 @@ function renderH(W, H) {
   });
 }
 
-new ResizeObserver(() => render()).observe(plot);
+function snapshot() {
+  return {type: D.type, n: (D.x || D.labels || []).length, series: (D.series || []).map(se => se.values.slice()),
+          bars: D.bars ? D.bars.values.slice() : null, vals: D.values ? D.values.slice() : null, hi: D.hi ?? null};
+}
+const target = snapshot();
+const prev = KEY ? memo[KEY] : null;
+const canMorph = !!prev && !reduce && prev.type === target.type && prev.n === target.n &&
+  prev.series.length === target.series.length && !!prev.bars === !!target.bars && !!prev.vals === !!target.vals;
+if (KEY) memo[KEY] = target;
+function apply(t) {
+  const L = (a, b) => (a == null || b == null) ? b : a + (b - a) * t;
+  (D.series || []).forEach((se, si) => { se.values = target.series[si].map((v, i) => L(prev.series[si][i], v)); });
+  if (D.bars) D.bars.values = target.bars.map((v, i) => L(prev.bars[i], v));
+  if (D.values) D.values = target.vals.map((v, i) => L(prev.vals[i], v));
+  if (target.hi != null && prev.hi != null) D.hi = L(prev.hi, target.hi);
+}
+let started = false;
+new ResizeObserver(() => {
+  if (!started && canMorph) {
+    started = true; first = false;
+    const t0 = performance.now();
+    (function step(now) {
+      const p = Math.min(1, (now - t0) / 700), e = p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+      apply(e); render();
+      if (p < 1) requestAnimationFrame(step);
+    })(t0);
+  } else { started = true; render(); }
+}).observe(plot);
 </script>
 </body>
 </html>

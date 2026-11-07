@@ -27,18 +27,31 @@ svg { display: block; width: 100%; max-width: 280px; height: auto; margin-top: 6
 }
 .go .stamp { opacity: 1; transform: rotate(-7deg) scale(1); }
 @media (max-width: 760px) { .wrap { grid-template-columns: 1fr; overflow: auto; } }
+#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
+.cell { transition: transform 200ms var(--ease), box-shadow 200ms var(--ease), border-color 200ms var(--ease); }
+.cell:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(29, 35, 64, .08); }
+.needle line { transition: stroke 140ms var(--ease); }
+.cell:hover .needle line { stroke: var(--accent); }
+.go .stamp { animation: thump 260ms var(--ease) 1100ms both; }
+@keyframes thump { 0% { transform: rotate(-7deg) scale(1.6); opacity: 0; } 100% { transform: rotate(-7deg) scale(1); opacity: 1; } }
 </style>
 </head>
 <body>
 <div class="wrap panel" id="wrap"></div>
+<canvas id="fx"></canvas>
 <script>
 const D = /*DATA*/null;
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const wrap = document.getElementById('wrap');
 const MAX = 0.5;
+// remember the last scores, so a new k swings the needles from where they were instead of from zero
+const memo = (() => { try { return window.parent.__pcVerdict || (window.parent.__pcVerdict = {}); } catch (e) { return {}; } })();
+const prev = memo.last || null;
+const fracOf = v => Math.max(0, Math.min(1, v / MAX));
 
 function dial(id, title, sub, v, color, win) {
-  const f = Math.max(0, Math.min(1, v / MAX));
+  const f = fracOf(v);
+  const p = prev ? (id === 'b' ? prev.before : prev.after) : 0, pf = fracOf(p);
   let ticks = '';
   for (let k = 0; k <= 5; k++) {
     const a = Math.PI * (1 - k / 5), x = 120 + Math.cos(a) * 118, y = 128 - Math.sin(a) * 118;
@@ -49,14 +62,14 @@ function dial(id, title, sub, v, color, win) {
     ${win ? '<div class="stamp">Approved</div>' : ''}
     <svg viewBox="0 0 240 140">
       <path class="track" d="M 22 128 A 98 98 0 0 1 218 128"/>
-      <path class="val" pathLength="1" data-f="${f}" d="M 22 128 A 98 98 0 0 1 218 128" stroke="${color}"/>
+      <path class="val" pathLength="1" data-f="${f}" d="M 22 128 A 98 98 0 0 1 218 128" stroke="${color}" style="stroke-dashoffset:${1 - pf}"/>
       ${ticks}
-      <g class="needle" data-deg="${f * 180}" style="transform-origin:120px 128px; transform: rotate(0deg)">
+      <g class="needle" data-deg="${f * 180}" style="transform-origin:120px 128px; transform: rotate(${pf * 180}deg)">
         <line x1="120" y1="128" x2="40" y2="128" stroke="#1d2340" stroke-width="3" stroke-linecap="round"/>
       </g>
       <circle cx="120" cy="128" r="7" fill="#1d2340"/>
     </svg>
-    <div class="num" data-v="${v}">${v.toFixed(3)}</div>
+    <div class="num" data-v="${v}" data-p="${p}">${v.toFixed(3)}</div>
     <div class="lbl">Silhouette score</div>
   </div>`;
 }
@@ -65,7 +78,7 @@ function ring(v) {
     <div class="cap"><span><b>Information kept</b></span><span>2 of 77</span></div>
     <svg viewBox="0 0 160 160" style="max-width:170px">
       <circle class="ring-bg" cx="80" cy="80" r="62"/>
-      <circle class="ring" pathLength="1" data-f="${v}" cx="80" cy="80" r="62"/>
+      <circle class="ring" pathLength="1" data-f="${v}" cx="80" cy="80" r="62" style="stroke-dashoffset:${1 - (prev ? prev.kept : 0)}"/>
       <text x="80" y="88" text-anchor="middle" style="font: 400 30px var(--font-display); fill:#1d2340">${(v * 100).toFixed(1)}%</text>
     </svg>
     <div class="lbl">of the variance survives PCA.<br>${(100 - v * 100).toFixed(1)}% is lost.</div>
@@ -80,14 +93,50 @@ function settle() {
   wrap.querySelectorAll('.ring').forEach(p => p.style.strokeDashoffset = 1 - p.dataset.f);
   wrap.querySelectorAll('.needle').forEach(g => g.style.transform = `rotate(${g.dataset.deg}deg)`);
 }
+// a short confetti burst from the stamp, only the first time or when the winner changes
+function confetti() {
+  const stamp = wrap.querySelector('.stamp');
+  if (!stamp) return;
+  const cv = document.getElementById('fx'), ctx = cv.getContext('2d');
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = innerWidth, H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const r = stamp.getBoundingClientRect(), ox = r.left + r.width / 2, oy = r.top + r.height / 2;
+  const colors = ['#d9557a', '#2f8f6f', '#d99a1e', '#4b5bb3', '#1d2340'];
+  const bits = Array.from({length: 70}, (_, i) => {
+    const a = -Math.PI / 2 + (Math.random() - .5) * Math.PI * 1.3, sp = 3 + Math.random() * 5;
+    return {x: ox, y: oy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, rot: Math.random() * 6, vr: (Math.random() - .5) * .4,
+            w: 4 + Math.random() * 4, h: 2 + Math.random() * 3, c: colors[i % colors.length]};
+  });
+  const t0 = performance.now(), LIFE = 1500;
+  (function step(now) {
+    const p = (now - t0) / LIFE;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    if (p >= 1) return;
+    ctx.globalAlpha = p < .7 ? 1 : 1 - (p - .7) / .3;
+    bits.forEach(b => {
+      b.vy += 0.16; b.vx *= 0.985; b.vy *= 0.985;
+      b.x += b.vx; b.y += b.vy; b.rot += b.vr;
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
+      ctx.fillStyle = b.c; ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+      ctx.restore();
+    });
+    requestAnimationFrame(step);
+  })(t0);
+}
+const winnerChanged = !prev || (prev.after > prev.before) !== winAfter;
+memo.last = {before: D.before, after: D.after, kept: D.kept};
+
 if (reduce) settle();
 else {
   requestAnimationFrame(() => requestAnimationFrame(settle));
+  if (winnerChanged) setTimeout(confetti, 1180);
   const t0 = performance.now();
   const nums = [...wrap.querySelectorAll('.num')];
   (function count(now) {
     const p = Math.min(1, (now - t0) / 1000), e = 1 - Math.pow(1 - p, 3);
-    nums.forEach(n => n.textContent = (+n.dataset.v * e).toFixed(3));
+    nums.forEach(n => n.textContent = (+n.dataset.p + (+n.dataset.v - +n.dataset.p) * e).toFixed(3));
     if (p < 1) requestAnimationFrame(count);
   })(t0);
 }
