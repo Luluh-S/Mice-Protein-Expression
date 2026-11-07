@@ -4,6 +4,8 @@ A mini project for our unsupervised learning course. We run K-Means on the data 
 
 **Team:** Luluh, Aleen, Reema, Khalid
 
+**Live demo:** [mice-protein-expression.streamlit.app](https://mice-protein-expression.streamlit.app/)
+
 ## Dataset
 
 [Mice Protein Expression (UCI)](https://archive.ics.uci.edu/dataset/342/mice+protein+expression)
@@ -42,6 +44,8 @@ A mini project for our unsupervised learning course. We run K-Means on the data 
 - `requirements.txt`: the packages needed
 
 ## Run the app
+
+Open the [live demo](https://mice-protein-expression.streamlit.app/), or run it on your computer:
 
 ```bash
 pip install -r requirements.txt
